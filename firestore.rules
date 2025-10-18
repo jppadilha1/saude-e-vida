@@ -1,72 +1,90 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for student data and attendance records.
+ * @fileoverview Firestore Security Rules for Prototyping.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes rapid prototyping by focusing on authorization and relationship integrity,
+ * while minimizing data-shape validation to allow for flexible schema evolution.  It enforces
+ * strict owner-only access to data, with public read access where appropriate.
  *
  * Data Structure:
- * - /students/{studentId}: Stores student profile information.
- * - /students/{studentId}/attendance/{attendanceId}: Stores attendance records for each student.
+ * - /students/{studentId}: Stores student profile data.  studentId is the Firebase auth UID.
+ * - /students/{studentId}/attendance/{attendanceId}: Stores attendance records for a student.
  *
  * Key Security Decisions:
- * - Students collection requires authentication for all operations.
- * - Students collection is publicly readable.
- * - Subcollections are only accessible by the owner of the parent document.
+ * - Listing of all students is denied to all users to protect privacy.
+ * - Only the authenticated user who owns a student profile can create, update, or delete it.
+ * - Attendance records inherit the ownership of the parent student document.
  *
  * Denormalization for Authorization:
- * - The `attendance` documents contains a `studentId` field, which must match the parent document ID to validate the relationship.
+ * The `studentId` is automatically enforced to match the authenticated user's UID on creation to simplify authorization checks.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to the students collection.
+     * @description Enforces access control for student profiles.
      * @path /students/{studentId}
-     * @allow (get, list): Any user can read student profiles.
-     * @allow (create): Only an authenticated user can create a student profile, and the studentId must match the authenticated user's ID.
-     * @allow (update, delete): Only the owner (same studentId) can update or delete their profile.
-     * @deny (create): Non-authenticated users cannot create student profiles.
-     * @deny (update, delete): Other authenticated users cannot modify or delete another user's student profile.
-     * @principle Enforces document ownership for writes, and public reads.
+     * @allow (create) Authenticated user can create their own student profile, with matching studentId.
+     * @allow (get, update, delete) Authenticated user can read, update, and delete their own student profile.
+     * @deny (list) Listing all students is not allowed.
+     * @deny (create) Authenticated user cannot create a student profile with a mismatched studentId.
+     * @deny (update, delete) Authenticated user cannot update or delete another user's student profile.
+     * @principle Enforces document ownership for writes.
      */
     match /students/{studentId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if isExistingOwner(studentId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(studentId) {
+        return request.auth.uid == studentId;
+      }
+
+      function isExistingOwner(studentId) {
+        return isOwner(studentId) && resource != null;
+      }
+
+      // Read rules
+      allow get: if isOwner(studentId);
+      allow list: if false;
+
+      // Write rules
+      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.id == studentId;
+      allow update: if isExistingOwner(studentId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(studentId);
     }
 
     /**
-     * @description Controls access to the attendance subcollection for each student.
+     * @description Enforces access control for attendance records of a specific student.
      * @path /students/{studentId}/attendance/{attendanceId}
-     * @allow (get, list): Only the owner (same studentId) can read their own attendance records.
-     * @allow (create): Only the owner (same studentId) can create new attendance records. The studentId field in the attendance document must match the parent studentId.
-     * @allow (update, delete): Only the owner (same studentId) can update or delete their attendance records.
-     * @deny (create): Creating attendance records with mismatched studentId is denied.
-     * @deny (update, delete): Other authenticated users cannot modify or delete another user's attendance records.
-     * @principle Enforces document ownership and relational integrity for writes.
+     * @allow (create) Authenticated user (owner of the student profile) can create attendance records for their student profile.
+     * @allow (get, update, delete) Authenticated user (owner of the student profile) can read, update, and delete attendance records for their student profile.
+     * @deny (list) Listing attendance records is allowed only for the student's owner.
+     * @deny (create, update, delete) Authenticated user cannot create, update, or delete attendance records for another user's student profile.
+     * @principle Enforces document ownership and relational integrity.
      */
     match /students/{studentId}/attendance/{attendanceId} {
-      allow get, list: if isOwner(studentId);
-      allow create: if isOwner(studentId) && request.resource.data.studentId == studentId;
-      allow update: if isExistingAttendanceOwner(studentId, attendanceId) && request.resource.data.studentId == resource.data.studentId;
-      allow delete: if isExistingAttendanceOwner(studentId, attendanceId);
-    }
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
+      function isOwner(studentId) {
+        return request.auth.uid == studentId;
+      }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
+      function isExistingOwner(studentId) {
+        return isOwner(studentId) && resource != null;
+      }
 
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
+      // Read rules
+      allow get: if isOwner(studentId);
+      allow list: if isOwner(studentId);
 
-    function isExistingAttendanceOwner(studentId, attendanceId) {
-        return isOwner(studentId) && exists(/databases/$(database)/documents/students/$(studentId)/attendance/$(attendanceId));
+      // Write rules
+      allow create: if isSignedIn() && isOwner(studentId);
+      allow update: if isExistingOwner(studentId);
+      allow delete: if isExistingOwner(studentId);
     }
   }
 }
