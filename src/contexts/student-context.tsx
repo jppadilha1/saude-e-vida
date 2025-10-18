@@ -18,6 +18,7 @@ interface StudentContextType {
   updateStudent: (studentId: string, updatedData: Partial<Omit<Student, 'id'>>) => void;
   deleteStudent: (studentId: string) => void;
   markAttendance: (studentId: string) => void;
+  resetAllPayments: () => void;
 }
 
 const StudentContext = createContext<StudentContextType | undefined>(undefined);
@@ -89,6 +90,16 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const resetAllPayments = () => {
+    setStudents((prev) =>
+      prev.map((student) =>
+        student.status === 'Ativo'
+          ? { ...student, paymentStatus: 'Pendente' }
+          : student
+      )
+    );
+  };
+
   const value = {
     students,
     loading,
@@ -96,6 +107,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     updateStudent,
     deleteStudent,
     markAttendance,
+    resetAllPayments,
   };
 
   return (

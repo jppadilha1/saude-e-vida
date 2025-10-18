@@ -11,8 +11,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Search, Filter } from 'lucide-react';
+import { Loader2, PlusCircle, Search, Filter, RefreshCw } from 'lucide-react';
 import StudentTable from './student-table';
 import { StudentDialog } from './student-dialog';
 import type { Student, StudentStatus, PaymentStatus } from '@/types';
@@ -24,13 +35,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+
 
 type AttendanceFilter = 'todos' | 'presente' | 'ausente';
 
 export default function StudentsClient() {
-  const { students, loading } = useStudent();
+  const { students, loading, resetAllPayments } = useStudent();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StudentStatus | 'todos'>('todos');
@@ -45,6 +59,14 @@ export default function StudentsClient() {
   const handleEditStudent = (student: Student) => {
     setSelectedStudent(student);
     setDialogOpen(true);
+  };
+
+  const handleResetPayments = () => {
+    resetAllPayments();
+    toast({
+      title: 'Mensalidades Resetadas',
+      description: 'O status de pagamento de todos os alunos ativos foi definido como pendente.',
+    });
   };
 
   const filteredStudents = useMemo(() => {
@@ -79,10 +101,35 @@ export default function StudentsClient() {
         <h2 className="font-headline text-2xl font-semibold">
           Lista de Alunos ({filteredStudents.length})
         </h2>
-        <Button onClick={handleAddStudent}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Adicionar Aluno
-        </Button>
+        <div className="flex gap-2">
+          <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Resetar Mensalidades
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação definirá o status de pagamento de TODOS os alunos ativos como "Pendente". 
+                    Essa ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleResetPayments}>
+                    Confirmar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          <Button onClick={handleAddStudent}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Adicionar Aluno
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-4">
