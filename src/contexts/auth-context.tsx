@@ -13,7 +13,7 @@ import { signInAnonymously } from 'firebase/auth';
 interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
-  login: (password: string) => boolean;
+  login: (password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -30,35 +30,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, isUserLoading: isFirebaseUserLoading } = useUser();
 
   useEffect(() => {
-    try {
-      const storedAuth = localStorage.getItem(AUTH_KEY);
-      if (storedAuth && JSON.parse(storedAuth)) {
-        setIsAuthenticated(true);
-        // If there's a stored session, ensure we have a Firebase user
-        if (!user && !isFirebaseUserLoading) {
-          signInAnonymously(firebaseAuth).catch((error) => {
-            console.error("Anonymous sign-in failed on session restore:", error);
-          });
+    // This effect ensures that if a user reloads the page with an existing session,
+    // they are authenticated both locally and in Firebase.
+    const syncAuth = async () => {
+      try {
+        const storedAuth = localStorage.getItem(AUTH_KEY);
+        if (storedAuth && JSON.parse(storedAuth)) {
+          setIsAuthenticated(true);
+          // If we have a local session but no Firebase user, sign in.
+          if (!user && !isFirebaseUserLoading && firebaseAuth) {
+            await signInAnonymously(firebaseAuth);
+          }
         }
+      } catch (error) {
+        console.error('Failed to parse auth state from localStorage', error);
+      } finally {
+        setLocalLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to parse auth state from localStorage', error);
-    } finally {
-      setLocalLoading(false);
-    }
+    };
+    syncAuth();
   }, [user, isFirebaseUserLoading, firebaseAuth]);
 
-  const login = (password: string): boolean => {
+  const login = async (password: string): Promise<boolean> => {
     if (password === CORRECT_PASSWORD) {
-      localStorage.setItem(AUTH_KEY, JSON.stringify(true));
-      setIsAuthenticated(true);
-      // Also sign in to Firebase anonymously
-      if (!user) {
-        signInAnonymously(firebaseAuth).catch((error) => {
+      if (firebaseAuth) {
+        try {
+          // Wait for Firebase anonymous sign-in to complete
+          await signInAnonymously(firebaseAuth);
+          localStorage.setItem(AUTH_KEY, JSON.stringify(true));
+          setIsAuthenticated(true);
+          return true;
+        } catch (error) {
           console.error("Anonymous sign-in failed on login:", error);
-        });
+          return false;
+        }
       }
-      return true;
     }
     return false;
   };
@@ -66,10 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem(AUTH_KEY);
     setIsAuthenticated(false);
-    // Note: We are not signing out the anonymous Firebase user
-    // to keep the session simple. A full implementation might require it.
+    // We don't sign out the anonymous user to keep the logic simple
+    // and avoid re-triggering rules issues on logout/login cycles.
   };
-  
+
   // The overall loading state depends on both local storage check and Firebase auth check.
   const loading = localLoading || isFirebaseUserLoading;
 

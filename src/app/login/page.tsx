@@ -27,16 +27,16 @@ export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const success = login(password);
+    const success = await login(password); // login is now async
     if (success) {
       router.push('/');
     } else {
       toast({
         title: 'Erro de Autenticação',
-        description: 'A palavra-passe está incorreta.',
+        description: 'A palavra-passe está incorreta ou falha na conexão.',
         variant: 'destructive',
       });
       setIsLoading(false);
