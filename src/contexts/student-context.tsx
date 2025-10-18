@@ -77,40 +77,41 @@ export function StudentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Wait until we have a user and student data is loaded.
-    if (isUserLoading || !user || studentsLoading) return;
+    if (isUserLoading || !user || studentsLoading || !firestore) return;
 
     if (!studentsData || studentsData.length === 0) {
       setAttendanceLoading(false); // No students, so no attendance to fetch.
+      setAttendanceData({}); // Ensure attendance data is cleared
       return;
     }
 
     const fetchAllAttendance = async () => {
       setAttendanceLoading(true);
       const newAttendanceData: Record<string, Attendance[]> = {};
-      if (firestore) {
-        await Promise.all(
-          studentsData.map(async (student) => {
-            const attendanceRef = collection(
-              firestore,
-              'students',
-              student.id,
-              'attendance'
+      
+      await Promise.all(
+        studentsData.map(async (student) => {
+          const attendanceRef = collection(
+            firestore,
+            'students',
+            student.id,
+            'attendance'
+          );
+          try {
+            const attendanceSnapshot = await getDocs(attendanceRef);
+            newAttendanceData[student.id] = attendanceSnapshot.docs.map(
+              (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
             );
-            try {
-              const attendanceSnapshot = await getDocs(attendanceRef);
-              newAttendanceData[student.id] = attendanceSnapshot.docs.map(
-                (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
-              );
-            } catch (error) {
-              const permissionError = new FirestorePermissionError({
-                path: attendanceRef.path,
-                operation: 'list',
-              });
-              errorEmitter.emit('permission-error', permissionError);
-            }
-          })
-        );
-      }
+          } catch (error) {
+            const permissionError = new FirestorePermissionError({
+              path: attendanceRef.path,
+              operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          }
+        })
+      );
+      
       setAttendanceData(newAttendanceData);
       setAttendanceLoading(false);
     };
@@ -127,7 +128,6 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   }, [studentsData, attendanceData]);
 
   // Overall loading state depends on user authentication and data fetching.
-  // If we don't have a user yet, we are loading.
   const loading = isUserLoading || (!!user && (studentsLoading || attendanceLoading));
 
   const addStudent = (studentData: {
@@ -271,3 +271,5 @@ export function useStudent() {
   }
   return context;
 }
+
+    
