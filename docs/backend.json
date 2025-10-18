@@ -1,0 +1,176 @@
+{
+  "entities": {
+    "Student": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Student",
+      "type": "object",
+      "description": "Represents a student in the academy.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Student entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the student."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the student.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the student."
+        },
+        "enrollmentDate": {
+          "type": "string",
+          "description": "The date the student enrolled.",
+          "format": "date-time"
+        },
+        "membershipStatusId": {
+          "type": "string",
+          "description": "Reference to MembershipStatus. (Relationship: MembershipStatus 1:N Student)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "phone",
+        "enrollmentDate",
+        "membershipStatusId"
+      ]
+    },
+    "Attendance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Attendance",
+      "type": "object",
+      "description": "Represents a student's attendance record.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Attendance entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to Student. (Relationship: Student 1:N Attendance)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the attendance record.",
+          "format": "date-time"
+        },
+        "isPresent": {
+          "type": "boolean",
+          "description": "Indicates whether the student was present."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "date",
+        "isPresent"
+      ]
+    },
+    "MembershipStatus": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MembershipStatus",
+      "type": "object",
+      "description": "Represents the membership status of a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MembershipStatus entity."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the membership (e.g., Active, Inactive, Pending)."
+        },
+        "lastPaymentDate": {
+          "type": "string",
+          "description": "The date of the last payment.",
+          "format": "date-time"
+        },
+        "paymentDueDate": {
+          "type": "string",
+          "description": "The date the next payment is due.",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes about the membership status."
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "lastPaymentDate",
+        "paymentDueDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/students/{studentId}",
+        "definition": {
+          "entityName": "Student",
+          "schema": {
+            "$ref": "#/backend/entities/Student"
+          },
+          "description": "Stores student data. Uses path-based ownership for security. Includes denormalized data if required to maintain authorization independence in subcollections.",
+          "params": [
+            {
+              "name": "studentId",
+              "description": "Unique identifier for the student."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/students/{studentId}/attendances/{attendanceId}",
+        "definition": {
+          "entityName": "Attendance",
+          "schema": {
+            "$ref": "#/backend/entities/Attendance"
+          },
+          "description": "Stores attendance records for each student. Inherits ownership from the parent student document for simplified security rules.",
+          "params": [
+            {
+              "name": "studentId",
+              "description": "Unique identifier for the student."
+            },
+            {
+              "name": "attendanceId",
+              "description": "Unique identifier for the attendance record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/membershipStatuses/{membershipStatusId}",
+        "definition": {
+          "entityName": "MembershipStatus",
+          "schema": {
+            "$ref": "#/backend/entities/MembershipStatus"
+          },
+          "description": "Stores membership status information. No specific ownership, as membership statuses might be globally managed by the admin.",
+          "params": [
+            {
+              "name": "membershipStatusId",
+              "description": "Unique identifier for the membership status."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to manage student data, attendance, and membership statuses for the 'Saúde e Vida' academy. It prioritizes authorization independence and simplifies security rules by denormalizing necessary data.  The structure uses path-based ownership for `students` and subcollections like `attendances`, enhancing security and query efficiency.  Specifically:\n\n1.  **Authorization Independence:** Since all operations are role based and a single admin user is anticipated, there is no need to store roles in the database. In order to create authorization independence we utilize path based rules on the data.\n\n2.  **Structural Segregation:** Each collection (`students`, `membershipStatuses`) stores homogeneous data, simplifying security rules. Data with different access requirements are stored in separate collections.\n\n3.  **Access Modeling:**  Uses path-based ownership (`/students/{studentId}`) for private student data and nested hierarchical paths for `attendances`. This is a secure pattern and makes ownership based security rules simple and efficient.\n\n4. **QAPs**: The design supports secure `list` operations (QAPs) by ensuring that collections only contain data that the user has access to. The use of path-based ownership ensures that users can only list the students they have access to (in this case, the admin user)."
+  }
+}
