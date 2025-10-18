@@ -30,14 +30,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, isUserLoading: isFirebaseUserLoading } = useUser();
 
   useEffect(() => {
-    // This effect ensures that if a user reloads the page with an existing session,
-    // they are authenticated both locally and in Firebase.
+    // This effect syncs local storage auth with Firebase's auth state.
     const syncAuth = async () => {
       try {
         const storedAuth = localStorage.getItem(AUTH_KEY);
+        // If we have a stored session, we assume authenticated.
         if (storedAuth && JSON.parse(storedAuth)) {
           setIsAuthenticated(true);
-          // If we have a local session but no Firebase user, sign in.
+          // If we think we are logged in, but Firebase doesn't have a user,
+          // we attempt to sign in anonymously to sync the states.
           if (!user && !isFirebaseUserLoading && firebaseAuth) {
             await signInAnonymously(firebaseAuth);
           }
@@ -55,8 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (password === CORRECT_PASSWORD) {
       if (firebaseAuth) {
         try {
-          // Wait for Firebase anonymous sign-in to complete
+          // CRITICAL: Wait for Firebase anonymous sign-in to complete
           await signInAnonymously(firebaseAuth);
+          // Only after successful Firebase auth, set local state
           localStorage.setItem(AUTH_KEY, JSON.stringify(true));
           setIsAuthenticated(true);
           return true;
@@ -72,11 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem(AUTH_KEY);
     setIsAuthenticated(false);
-    // We don't sign out the anonymous user to keep the logic simple
-    // and avoid re-triggering rules issues on logout/login cycles.
+    // We don't sign out the anonymous Firebase user. This keeps the logic simple
+    // and avoids re-triggering Firestore rules issues on rapid logout/login cycles.
+    // The user will be re-authenticated on the next login.
   };
 
-  // The overall loading state depends on both local storage check and Firebase auth check.
+  // The overall loading state depends on both the local storage check and the Firebase user check.
   const loading = localLoading || isFirebaseUserLoading;
 
   const value = { isAuthenticated, loading, login, logout };
