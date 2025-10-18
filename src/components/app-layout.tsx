@@ -49,16 +49,17 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
           <Logo />
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu className="gap-1 p-2">
+          <SidebarMenu className="gap-2 p-2">
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
                 isActive={pathname === '/'}
                 tooltip="Painel"
+                size="lg"
               >
                 <Link href="/">
                   <LayoutDashboard />
-                  <span>Painel</span>
+                  <span className="text-base">Painel</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -67,10 +68,11 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
                 asChild
                 isActive={pathname === '/students'}
                 tooltip="Alunos"
+                size="lg"
               >
                 <Link href="/students">
                   <Users />
-                  <span>Alunos</span>
+                  <span className="text-base">Alunos</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
