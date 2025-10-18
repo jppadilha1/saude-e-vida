@@ -73,12 +73,23 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   const [attendanceLoading, setAttendanceLoading] = useState(true);
 
   useEffect(() => {
-    if (!studentsData || !firestore) return;
+    if (isUserLoading) return; // Wait for auth to be ready
+    if (!user) { // If no user, we are done loading
+        setAttendanceLoading(false);
+        return;
+    }
+    if (studentsLoading) return; // Wait for students to load
+
+    if (!studentsData || studentsData.length === 0) {
+      setAttendanceLoading(false); // No students, so no attendance to fetch.
+      return;
+    }
 
     const fetchAllAttendance = async () => {
       setAttendanceLoading(true);
       const newAttendanceData: Record<string, Attendance[]> = {};
-      for (const student of studentsData) {
+      await Promise.all(studentsData.map(async (student) => {
+        if (!firestore) return;
         const attendanceRef = collection(
           firestore,
           'students',
@@ -89,13 +100,13 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         newAttendanceData[student.id] = attendanceSnapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
         );
-      }
+      }));
       setAttendanceData(newAttendanceData);
       setAttendanceLoading(false);
     };
 
     fetchAllAttendance();
-  }, [studentsData, firestore]);
+  }, [studentsData, studentsLoading, firestore, user, isUserLoading]);
 
   const students = useMemo(() => {
     if (!studentsData) return [];
@@ -166,7 +177,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         if (todayAttendanceIndex > -1) {
             studentAttendance[todayAttendanceIndex].present = !studentAttendance[todayAttendanceIndex].present;
         } else {
-            studentAttendance.push({ id: 'temp-id', date: formatISO(new Date()), present: true });
+            studentAttendance.push({ id: 'temp-id', date: formatISO(new Date()), present: true, studentId: studentId });
         }
         return { ...prev, [studentId]: studentAttendance };
     });

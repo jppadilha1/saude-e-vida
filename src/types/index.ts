@@ -2,6 +2,8 @@ export type PaymentStatus = 'Pago' | 'Pendente';
 export type StudentStatus = 'Ativo' | 'Inativo';
 
 export type Attendance = {
+  id: string;
+  studentId: string;
   date: string;
   present: boolean;
 };
