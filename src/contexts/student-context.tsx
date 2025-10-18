@@ -73,12 +73,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   const [attendanceLoading, setAttendanceLoading] = useState(true);
 
   useEffect(() => {
-    if (isUserLoading) return; // Wait for auth to be ready
-    if (!user) { // If no user, we are done loading
-        setAttendanceLoading(false);
-        return;
-    }
-    if (studentsLoading) return; // Wait for students to load
+    if (isUserLoading || !user || studentsLoading) return;
 
     if (!studentsData || studentsData.length === 0) {
       setAttendanceLoading(false); // No students, so no attendance to fetch.
@@ -88,19 +83,22 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     const fetchAllAttendance = async () => {
       setAttendanceLoading(true);
       const newAttendanceData: Record<string, Attendance[]> = {};
-      await Promise.all(studentsData.map(async (student) => {
-        if (!firestore) return;
-        const attendanceRef = collection(
-          firestore,
-          'students',
-          student.id,
-          'attendance'
+      if (firestore) {
+        await Promise.all(
+          studentsData.map(async (student) => {
+            const attendanceRef = collection(
+              firestore,
+              'students',
+              student.id,
+              'attendance'
+            );
+            const attendanceSnapshot = await getDocs(attendanceRef);
+            newAttendanceData[student.id] = attendanceSnapshot.docs.map(
+              (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
+            );
+          })
         );
-        const attendanceSnapshot = await getDocs(attendanceRef);
-        newAttendanceData[student.id] = attendanceSnapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
-        );
-      }));
+      }
       setAttendanceData(newAttendanceData);
       setAttendanceLoading(false);
     };
@@ -147,28 +145,30 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     deleteDocumentNonBlocking(studentDocRef);
   };
 
-  const markAttendance = async (studentId: string) => {
+  const markAttendance = (studentId: string) => {
     if (!firestore) return;
     const today = formatISO(new Date(), { representation: 'date' });
-    const attendanceRef = collection(
-      firestore,
-      'students',
-      studentId,
-      'attendance'
+    const attendanceRef = collection(firestore, 'students', studentId, 'attendance');
+    const q = query(
+      attendanceRef,
+      where('date', '>=', `${today}T00:00:00.000Z`),
+      where('date', '<=', `${today}T23:59:59.999Z`)
     );
-    const q = query(attendanceRef, where('date', '>=', `${today}T00:00:00.000Z`), where('date', '<=', `${today}T23:59:59.999Z`));
-    const querySnapshot = await getDocs(q);
 
-    let docToUpdate;
-    if (querySnapshot.empty) {
-      docToUpdate = doc(attendanceRef); // Create a new doc reference
-      setDocumentNonBlocking(docToUpdate, { date: formatISO(new Date()), present: true }, { merge: false });
-    } else {
-      docToUpdate = querySnapshot.docs[0].ref;
-      const currentStatus = querySnapshot.docs[0].data().present;
-      updateDocumentNonBlocking(docToUpdate, { present: !currentStatus });
-    }
-    
+    getDocs(q).then(querySnapshot => {
+      let docToUpdate;
+      if (querySnapshot.empty) {
+        docToUpdate = doc(attendanceRef); // Create a new doc reference
+        const data = { date: formatISO(new Date()), present: true };
+        setDocumentNonBlocking(docToUpdate, data, {});
+      } else {
+        docToUpdate = querySnapshot.docs[0].ref;
+        const currentStatus = querySnapshot.docs[0].data().present;
+        const data = { present: !currentStatus };
+        updateDocumentNonBlocking(docToUpdate, data);
+      }
+    });
+
     // Optimistically update UI
     setAttendanceData(prev => {
         const studentAttendance = prev[studentId] ? [...prev[studentId]] : [];
@@ -196,7 +196,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     });
     await batch.commit();
   };
-  
+
     const getStudentAttendance = async (studentId: string): Promise<Attendance[]> => {
     if (!firestore) return [];
     const attendanceRef = collection(
