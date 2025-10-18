@@ -113,7 +113,7 @@ export default function StudentsClient() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta ação definirá o status de pagamento de TODOS os alunos ativos como "Pendente". 
+                    Esta ação definirá o status de pagamento de <span className="font-bold">TODOS</span> os alunos ativos como "Pendente". 
                     Essa ação não pode ser desfeita.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
