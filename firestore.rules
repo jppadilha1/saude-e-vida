@@ -1,135 +1,74 @@
 /**
- * @fileoverview Firestore Security Rules for the Saúde e Vida academy application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for student data and attendance records,
- * while allowing more open access to membership status information.  All rules rely on
- * the authenticated user's ID (`request.auth.uid`) for authorization.
+ * @description This ruleset enforces a strict user-ownership model for student and attendance data.
+ * All data is stored under the top-level collections `/students/{studentId}` and
+ * `/students/{studentId}/attendance/{attendanceId}`.
  *
  * Data Structure:
- * - `/students/{studentId}`: Stores individual student profiles.  Access is restricted to
- *   the owning user.
- * - `/students/{studentId}/attendances/{attendanceId}`: Stores attendance records for
- *   students.  Inherits ownership from the parent `/students/{studentId}` document.
- * - `/membershipStatuses/{membershipStatusId}`: Stores global membership status definitions
- *   (e.g., Active, Inactive).  These are intended to be managed by administrative users.
+ * - /students/{studentId}: Stores student profile information. The `studentId` is used as the document ID.
+ * - /students/{studentId}/attendance/{attendanceId}: Stores attendance records for a specific student.
+ *   The `attendanceId` is used as the document ID.
  *
  * Key Security Decisions:
- * - Students collection can only be accessed by the admin user (in this case we are using path based rules)
- * - Listing of `/students` and `attendances` is restricted to admin users.
- *
- * Denormalization for Authorization:
- * No specific denormalization is required, as path-based ownership is sufficient.
+ * - Students collection and subcollections are only readable by authenticated users (no public access).
+ * - Students can only create, update, or delete their own documents.
+ * - Listing of the students collection is explicitly denied.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Manages access to student profile data. Only admin users can CRUD data.
+     * @description Controls access to the /students collection.
      * @path /students/{studentId}
-     * @allow (create) Request from admin user to create a new student.
-     * @deny (create) Request from non-admin user to create a new student.
-     * @allow (get, list) Request from admin user to get or list students.
-     * @deny (get, list) Request from non-admin user to get or list students.
-     * @allow (update, delete) Request from admin user to update or delete an existing student.
-     * @deny (update, delete) Request from non-admin user to update or delete an existing student.
-     * @principle Enforces path-based ownership, restricting access to the owning user only.
+     * @allow (create) Authenticated user can create a student document if the studentId matches their UID.
+     * @allow (get) Authenticated user can get a student document if the studentId matches their UID.
+     * @allow (update) Authenticated user can update a student document if the studentId matches their UID and the document exists.
+     * @allow (delete) Authenticated user can delete a student document if the studentId matches their UID and the document exists.
+     * @deny (list) Listing all students is not allowed.
+     * @deny (create) Unauthenticated users cannot create student documents.
+     * @deny (update) Authenticated user cannot update other student's documents.
+     * @deny (delete) Authenticated user cannot delete other student's documents.
+     * @principle Enforces document ownership for writes.
      */
     match /students/{studentId} {
-      // Helper function to check if the user is signed in
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      // Helper function to check if the user is the owner of the document
-      function isOwner(studentId) {
-        return request.auth.uid == studentId;
-      }
-
-      // Helper function to check if the user is the existing owner of the document
-      function isExistingOwner(studentId) {
-        return isOwner(studentId) && resource != null;
-      }
-
-      // Read rules
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-
-      // Write rules
-      allow create: if isSignedIn();
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow get: if isSignedIn() && isOwner(studentId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.id == studentId;
+      allow update: if isSignedIn() && isExistingOwner(studentId) && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && isExistingOwner(studentId);
     }
 
     /**
-     * @description Manages access to student attendance records, inherited from the parent student document.
-     * @path /students/{studentId}/attendances/{attendanceId}
-     * @allow (create) Request from the student to create a new attendance record.
-     * @deny (create) Request from non-student user to create a new attendance record.
-     * @allow (get, list) Request from the student to get or list their attendance records.
-     * @deny (get, list) Request from non-student user to get or list attendance records.
-     * @allow (update, delete) Request from the student to update or delete an existing attendance record.
-     * @deny (update, delete) Request from non-student user to update or delete an existing attendance record.
-     * @principle Enforces document ownership, restricting write access to the owning user only.
+     * @description Controls access to the /students/{studentId}/attendance/{attendanceId} collection.
+     * @path /students/{studentId}/attendance/{attendanceId}
+     * @allow (create) Authenticated user can create an attendance document for their student if the studentId matches their UID.
+     * @allow (get) Authenticated user can get an attendance document for their student if the studentId matches their UID.
+     * @allow (update) Authenticated user can update an attendance document for their student if the studentId matches their UID and the document exists.
+     * @allow (delete) Authenticated user can delete an attendance document for their student if the studentId matches their UID and the document exists.
+     * @deny (list) Listing all attendance records is not allowed.
+     * @deny (create) Unauthenticated users cannot create attendance documents.
+     * @deny (update) Authenticated user cannot update other student's attendance documents.
+     * @deny (delete) Authenticated user cannot delete other student's attendance documents.
+     * @principle Enforces document ownership for writes.
      */
-    match /students/{studentId}/attendances/{attendanceId} {
-      // Helper function to check if the user is signed in
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      // Helper function to check if the user is the owner of the parent document
-      function isOwner(studentId) {
-        return request.auth.uid == studentId;
-      }
-
-      // Helper function to check if the user is the existing owner of the parent document
-      function isExistingOwner(studentId) {
-        return isOwner(studentId) && resource != null;
-      }
-
-      // Read rules
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-
-      // Write rules
-      allow create: if isSignedIn();
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+    match /students/{studentId}/attendance/{attendanceId} {
+      allow get: if isSignedIn() && isOwner(studentId);
+      allow list: if isSignedIn() && isOwner(studentId);
+      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.studentId == studentId;
+      allow update: if isSignedIn() && isExistingOwner(studentId) && resource.data.studentId == studentId;
+      allow delete: if isSignedIn() && isExistingOwner(studentId) && resource.data.studentId == studentId;
     }
 
-    /**
-     * @description Manages access to membership status definitions. Accessible to signed-in users.
-     * @path /membershipStatuses/{membershipStatusId}
-     * @allow (get, list) Any signed-in user can read membership statuses.
-     * @deny (create, update, delete) Only the admin user can create, update, or delete membership statuses.
-     * @principle Allows public read access but restricts write access to admins.
-     */
-    match /membershipStatuses/{membershipStatusId} {
-      // Helper function to check if the user is signed in
-      function isSignedIn() {
-        return request.auth != null;
-      }
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-      // Helper function to check if the user is the owner of the document
-      function isOwner(membershipStatusId) {
-        return request.auth.uid == membershipStatusId;
-      }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
 
-      // Helper function to check if the user is the existing owner of the document
-      function isExistingOwner(membershipStatusId) {
-        return isOwner(membershipStatusId) && resource != null;
-      }
-
-      // Read rules
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-
-      // Write rules
-      allow create: if isSignedIn();
-      allow update: if isExistingOwner(membershipStatusId);
-      allow delete: if isExistingOwner(membershipStatusId);
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
     }
   }
 }
