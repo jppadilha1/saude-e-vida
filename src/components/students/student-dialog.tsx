@@ -127,6 +127,7 @@ export function StudentDialog({
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    disabled={!isEditing}
                   >
                     <FormControl>
                       <SelectTrigger>
