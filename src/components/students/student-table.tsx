@@ -66,7 +66,7 @@ export default function StudentTable({ students, onEdit }: StudentTableProps) {
             <TableHead>Status</TableHead>
             <TableHead>Mensalidade</TableHead>
             <TableHead>Presença Hoje</TableHead>
-            <TableHead>Ações</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -92,7 +92,10 @@ export default function StudentTable({ students, onEdit }: StudentTableProps) {
                 <TableCell>
                   {student.status === 'Ativo' ? (
                      hasAttendedToday(student) ? (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                          <span className="text-sm text-muted-foreground">Presente</span>
+                        </div>
                       ) : (
                         <Button
                           size="sm"
@@ -106,7 +109,7 @@ export default function StudentTable({ students, onEdit }: StudentTableProps) {
                      <span className="text-muted-foreground">-</span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-right">
                   <AlertDialog>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -122,7 +125,7 @@ export default function StudentTable({ students, onEdit }: StudentTableProps) {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem className="text-red-600 focus:text-red-600">
                             Excluir
                           </DropdownMenuItem>
                         </AlertDialogTrigger>
@@ -138,7 +141,10 @@ export default function StudentTable({ students, onEdit }: StudentTableProps) {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteStudent(student.id)}>
+                        <AlertDialogAction
+                          className="bg-red-600 hover:bg-red-700"
+                          onClick={() => deleteStudent(student.id)}
+                        >
                           Excluir
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -150,7 +156,7 @@ export default function StudentTable({ students, onEdit }: StudentTableProps) {
           ) : (
             <TableRow>
               <TableCell colSpan={5} className="h-24 text-center">
-                Nenhum aluno encontrado.
+                Nenhum aluno encontrado para os filtros aplicados.
               </TableCell>
             </TableRow>
           )}

@@ -9,8 +9,8 @@ export const mockStudents: Student[] = [
     status: 'Ativo',
     paymentStatus: 'Pago',
     attendance: [
-      { date: new Date().toDateString(), present: true },
-      { date: subDays(new Date(), 2).toDateString(), present: true },
+      { date: formatISO(new Date()), present: true },
+      { date: formatISO(subDays(new Date(), 2)), present: true },
     ],
   },
   {
@@ -20,7 +20,7 @@ export const mockStudents: Student[] = [
     status: 'Ativo',
     paymentStatus: 'Pendente',
     attendance: [
-      { date: subDays(new Date(), 1).toDateString(), present: true },
+      { date: formatISO(subDays(new Date(), 1)), present: true },
     ],
   },
   {
@@ -30,7 +30,7 @@ export const mockStudents: Student[] = [
     status: 'Ativo',
     paymentStatus: 'Pago',
     attendance: [
-       { date: subDays(new Date(), 3).toDateString(), present: true },
+       { date: formatISO(subDays(new Date(), 3)), present: true },
     ],
   },
   {
@@ -56,7 +56,7 @@ export const mockStudents: Student[] = [
     status: 'Ativo',
     paymentStatus: 'Pago',
     attendance: [
-        { date: new Date().toDateString(), present: true },
+        { date: formatISO(new Date()), present: true },
     ],
   },
 ];

@@ -7,7 +7,7 @@ import React, {
   useEffect,
   type ReactNode,
 } from 'react';
-import { formatISO } from 'date-fns';
+import { formatISO, isToday } from 'date-fns';
 import { mockStudents } from '@/lib/data';
 import type { Student, StudentStatus, PaymentStatus } from '@/types';
 
@@ -71,19 +71,16 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   };
 
   const markAttendance = (studentId: string) => {
-    const today = new Date().toDateString();
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id === studentId) {
           const newAttendance = [...student.attendance];
-          const todayAttendanceIndex = newAttendance.findIndex(a => a.date === today);
+          const todayAttendanceIndex = newAttendance.findIndex(a => isToday(new Date(a.date)));
 
           if (todayAttendanceIndex > -1) {
-            // If already marked, toggle presence (for demo purposes)
-            // In a real app, you might prevent this or have a different logic
             newAttendance[todayAttendanceIndex].present = !newAttendance[todayAttendanceIndex].present;
           } else {
-            newAttendance.push({ date: today, present: true });
+            newAttendance.push({ date: formatISO(new Date()), present: true });
           }
           return { ...student, attendance: newAttendance };
         }
