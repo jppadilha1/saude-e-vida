@@ -31,6 +31,9 @@ import {
   deleteDocumentNonBlocking,
   setDocumentNonBlocking,
 } from '@/firebase/non-blocking-updates';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 type StudentWithAttendance = Student & { attendance: Attendance[] };
 
@@ -92,10 +95,18 @@ export function StudentProvider({ children }: { children: ReactNode }) {
               student.id,
               'attendance'
             );
-            const attendanceSnapshot = await getDocs(attendanceRef);
-            newAttendanceData[student.id] = attendanceSnapshot.docs.map(
-              (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
-            );
+            try {
+              const attendanceSnapshot = await getDocs(attendanceRef);
+              newAttendanceData[student.id] = attendanceSnapshot.docs.map(
+                (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
+              );
+            } catch (error) {
+              const permissionError = new FirestorePermissionError({
+                path: attendanceRef.path,
+                operation: 'list',
+              });
+              errorEmitter.emit('permission-error', permissionError);
+            }
           })
         );
       }
@@ -122,7 +133,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     status: StudentStatus;
     paymentStatus: PaymentStatus;
   }) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     const studentsCollection = collection(firestore, 'students');
     addDocumentNonBlocking(studentsCollection, {
       ...studentData,
@@ -134,19 +145,19 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     studentId: string,
     updatedData: Partial<Omit<Student, 'id'>>
   ) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     const studentDocRef = doc(firestore, 'students', studentId);
     updateDocumentNonBlocking(studentDocRef, updatedData);
   };
 
   const deleteStudent = (studentId: string) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     const studentDocRef = doc(firestore, 'students', studentId);
     deleteDocumentNonBlocking(studentDocRef);
   };
 
   const markAttendance = (studentId: string) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     const today = formatISO(new Date(), { representation: 'date' });
     const attendanceRef = collection(firestore, 'students', studentId, 'attendance');
     const q = query(
@@ -167,6 +178,12 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         const data = { present: !currentStatus };
         updateDocumentNonBlocking(docToUpdate, data);
       }
+    }).catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: q.toString(),
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     });
 
     // Optimistically update UI
@@ -184,31 +201,48 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   };
 
   const resetAllPayments = async () => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     const batch = writeBatch(firestore);
     const activeStudentsQuery = query(
       collection(firestore, 'students'),
       where('status', '==', 'Ativo')
     );
-    const querySnapshot = await getDocs(activeStudentsQuery);
-    querySnapshot.forEach((doc) => {
-      batch.update(doc.ref, { paymentStatus: 'Pendente' });
-    });
-    await batch.commit();
+    try {
+        const querySnapshot = await getDocs(activeStudentsQuery);
+        querySnapshot.forEach((doc) => {
+          batch.update(doc.ref, { paymentStatus: 'Pendente' });
+        });
+        await batch.commit();
+    } catch(e) {
+        const permissionError = new FirestorePermissionError({
+            path: activeStudentsQuery.toString(),
+            operation: 'write',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
   };
 
     const getStudentAttendance = async (studentId: string): Promise<Attendance[]> => {
-    if (!firestore) return [];
+    if (!firestore || !user) return [];
     const attendanceRef = collection(
       firestore,
       'students',
       studentId,
       'attendance'
     );
-    const attendanceSnapshot = await getDocs(attendanceRef);
-    return attendanceSnapshot.docs.map(
-      (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
-    );
+    try {
+        const attendanceSnapshot = await getDocs(attendanceRef);
+        return attendanceSnapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
+        );
+    } catch (e) {
+        const permissionError = new FirestorePermissionError({
+            path: attendanceRef.path,
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        return [];
+    }
   };
 
 
