@@ -66,18 +66,20 @@ export function StudentDialog({
   });
 
   useEffect(() => {
-    if (student) {
-      form.reset({
-        name: student.name,
-        status: student.status,
-        paymentStatus: student.paymentStatus,
-      });
-    } else {
-      form.reset({
-        name: '',
-        status: 'Ativo',
-        paymentStatus: 'Pago',
-      });
+    if (isOpen) {
+      if (student) {
+        form.reset({
+          name: student.name,
+          status: student.status,
+          paymentStatus: student.paymentStatus,
+        });
+      } else {
+        form.reset({
+          name: '',
+          status: 'Ativo',
+          paymentStatus: 'Pago',
+        });
+      }
     }
   }, [student, form, isOpen]);
 
@@ -126,7 +128,7 @@ export function StudentDialog({
                   <FormLabel>Status da Matrícula</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                     disabled={!isEditing}
                   >
                     <FormControl>
@@ -151,7 +153,7 @@ export function StudentDialog({
                   <FormLabel>Status da Mensalidade</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>

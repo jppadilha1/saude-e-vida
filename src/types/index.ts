@@ -9,8 +9,8 @@ export type Attendance = {
 export type Student = {
   id: string;
   name: string;
-  joinDate: string;
+  enrollmentDate: string; // Renamed from joinDate
   status: StudentStatus;
   paymentStatus: PaymentStatus;
-  attendance: Attendance[];
+  // Attendance is now a subcollection, so it's not part of the Student type directly
 };

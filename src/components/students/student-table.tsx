@@ -1,8 +1,8 @@
 'use client';
 
-import type { Student } from '@/types';
+import type { Student, Attendance } from '@/types';
 import { useStudent } from '@/contexts/student-context';
-import { format, isToday } from 'date-fns';
+import { isToday } from 'date-fns';
 import {
   Table,
   TableBody,
@@ -32,11 +32,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle, MoreHorizontal, XCircle } from 'lucide-react';
+import { CheckCircle, MoreHorizontal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+type StudentWithAttendance = Student & { attendance: Attendance[] };
+
 type StudentTableProps = {
-  students: Student[];
+  students: StudentWithAttendance[];
   onEdit: (student: Student) => void;
 };
 
@@ -52,7 +54,7 @@ export default function StudentTable({ students, onEdit }: StudentTableProps) {
     });
   };
 
-  const hasAttendedToday = (student: Student) => {
+  const hasAttendedToday = (student: StudentWithAttendance) => {
     const todayAttendance = student.attendance.find((a) => isToday(new Date(a.date)));
     return todayAttendance?.present;
   };

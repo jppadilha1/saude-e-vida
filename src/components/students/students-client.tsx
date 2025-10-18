@@ -26,7 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, PlusCircle, Search, Filter, RefreshCw } from 'lucide-react';
 import StudentTable from './student-table';
 import { StudentDialog } from './student-dialog';
-import type { Student, StudentStatus, PaymentStatus } from '@/types';
+import type { Student, StudentStatus, PaymentStatus, Attendance } from '@/types';
 import { isToday } from 'date-fns';
 import {
   DropdownMenu,
@@ -39,6 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 
 
 type AttendanceFilter = 'todos' | 'presente' | 'ausente';
+type StudentWithAttendance = Student & { attendance: Attendance[] };
 
 export default function StudentsClient() {
   const { students, loading, resetAllPayments } = useStudent();
@@ -70,7 +71,7 @@ export default function StudentsClient() {
   };
 
   const filteredStudents = useMemo(() => {
-    return students.filter((student) => {
+    return (students as StudentWithAttendance[]).filter((student) => {
       const nameMatches = student.name.toLowerCase().includes(searchTerm.toLowerCase());
       const statusMatches = statusFilter === 'todos' || student.status === statusFilter;
       const paymentMatches = paymentFilter === 'todos' || student.paymentStatus === paymentFilter;

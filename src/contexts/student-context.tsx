@@ -6,99 +6,195 @@ import React, {
   useState,
   useEffect,
   type ReactNode,
+  useMemo,
 } from 'react';
 import { formatISO, isToday } from 'date-fns';
-import { mockStudents } from '@/lib/data';
-import type { Student, StudentStatus, PaymentStatus } from '@/types';
+import type { Student, StudentStatus, PaymentStatus, Attendance } from '@/types';
+import {
+  useFirestore,
+  useCollection,
+  useMemoFirebase,
+} from '@/firebase';
+import {
+  collection,
+  doc,
+  writeBatch,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+} from 'firebase/firestore';
+import {
+  addDocumentNonBlocking,
+  updateDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking,
+} from '@/firebase/non-blocking-updates';
+
+type StudentWithAttendance = Student & { attendance: Attendance[] };
 
 interface StudentContextType {
-  students: Student[];
+  students: StudentWithAttendance[];
   loading: boolean;
-  addStudent: (studentData: { name: string; status: StudentStatus; paymentStatus: PaymentStatus; }) => void;
-  updateStudent: (studentId: string, updatedData: Partial<Omit<Student, 'id'>>) => void;
+  addStudent: (studentData: {
+    name: string;
+    status: StudentStatus;
+    paymentStatus: PaymentStatus;
+  }) => void;
+  updateStudent: (
+    studentId: string,
+    updatedData: Partial<Omit<Student, 'id'>>
+  ) => void;
   deleteStudent: (studentId: string) => void;
   markAttendance: (studentId: string) => void;
   resetAllPayments: () => void;
+  getStudentAttendance: (studentId: string) => Promise<Attendance[]>;
 }
 
-const StudentContext = createContext<StudentContextType | undefined>(undefined);
-
-const STUDENTS_KEY = 'saude-vida-students';
+const StudentContext = createContext<StudentContextType | undefined>(
+  undefined
+);
 
 export function StudentProvider({ children }: { children: ReactNode }) {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
+  const firestore = useFirestore();
+  const studentsRef = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'students') : null),
+    [firestore]
+  );
+  const { data: studentsData, isLoading: studentsLoading } =
+    useCollection<Student>(studentsRef);
+  const [attendanceData, setAttendanceData] = useState<
+    Record<string, Attendance[]>
+  >({});
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const storedStudents = localStorage.getItem(STUDENTS_KEY);
-      if (storedStudents) {
-        setStudents(JSON.parse(storedStudents));
-      } else {
-        setStudents(mockStudents);
+    if (!studentsData || !firestore) return;
+
+    const fetchAllAttendance = async () => {
+      setAttendanceLoading(true);
+      const newAttendanceData: Record<string, Attendance[]> = {};
+      for (const student of studentsData) {
+        const attendanceRef = collection(
+          firestore,
+          'students',
+          student.id,
+          'attendance'
+        );
+        const attendanceSnapshot = await getDocs(attendanceRef);
+        newAttendanceData[student.id] = attendanceSnapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
+        );
       }
-    } catch (error) {
-      console.error('Failed to access student data, using mock data.', error);
-      setStudents(mockStudents);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem(STUDENTS_KEY, JSON.stringify(students));
-    }
-  }, [students, loading]);
-
-  const addStudent = (studentData: { name: string; status: StudentStatus; paymentStatus: PaymentStatus; }) => {
-    const newStudent: Student = {
-      id: crypto.randomUUID(),
-      ...studentData,
-      joinDate: formatISO(new Date()),
-      attendance: [],
+      setAttendanceData(newAttendanceData);
+      setAttendanceLoading(false);
     };
-    setStudents((prev) => [...prev, newStudent]);
+
+    fetchAllAttendance();
+  }, [studentsData, firestore]);
+
+  const students = useMemo(() => {
+    if (!studentsData) return [];
+    return studentsData.map((student) => ({
+      ...student,
+      attendance: attendanceData[student.id] || [],
+    }));
+  }, [studentsData, attendanceData]);
+
+  const loading = studentsLoading || attendanceLoading;
+
+  const addStudent = (studentData: {
+    name: string;
+    status: StudentStatus;
+    paymentStatus: PaymentStatus;
+  }) => {
+    if (!firestore) return;
+    const studentsCollection = collection(firestore, 'students');
+    addDocumentNonBlocking(studentsCollection, {
+      ...studentData,
+      enrollmentDate: formatISO(new Date()),
+    });
   };
 
-  const updateStudent = (studentId: string, updatedData: Partial<Omit<Student, 'id'>>) => {
-    setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, ...updatedData } : s))
-    );
+  const updateStudent = (
+    studentId: string,
+    updatedData: Partial<Omit<Student, 'id'>>
+  ) => {
+    if (!firestore) return;
+    const studentDocRef = doc(firestore, 'students', studentId);
+    updateDocumentNonBlocking(studentDocRef, updatedData);
   };
 
   const deleteStudent = (studentId: string) => {
-    setStudents((prev) => prev.filter((s) => s.id !== studentId));
+    if (!firestore) return;
+    const studentDocRef = doc(firestore, 'students', studentId);
+    deleteDocumentNonBlocking(studentDocRef);
   };
 
-  const markAttendance = (studentId: string) => {
-    setStudents((prev) =>
-      prev.map((student) => {
-        if (student.id === studentId) {
-          const newAttendance = [...student.attendance];
-          const todayAttendanceIndex = newAttendance.findIndex(a => isToday(new Date(a.date)));
+  const markAttendance = async (studentId: string) => {
+    if (!firestore) return;
+    const today = formatISO(new Date(), { representation: 'date' });
+    const attendanceRef = collection(
+      firestore,
+      'students',
+      studentId,
+      'attendance'
+    );
+    const q = query(attendanceRef, where('date', '>=', `${today}T00:00:00.000Z`), where('date', '<=', `${today}T23:59:59.999Z`));
+    const querySnapshot = await getDocs(q);
 
-          if (todayAttendanceIndex > -1) {
-            newAttendance[todayAttendanceIndex].present = !newAttendance[todayAttendanceIndex].present;
-          } else {
-            newAttendance.push({ date: formatISO(new Date()), present: true });
-          }
-          return { ...student, attendance: newAttendance };
+    let docToUpdate;
+    if (querySnapshot.empty) {
+      docToUpdate = doc(attendanceRef); // Create a new doc reference
+      setDocumentNonBlocking(docToUpdate, { date: formatISO(new Date()), present: true }, { merge: false });
+    } else {
+      docToUpdate = querySnapshot.docs[0].ref;
+      const currentStatus = querySnapshot.docs[0].data().present;
+      updateDocumentNonBlocking(docToUpdate, { present: !currentStatus });
+    }
+    
+    // Optimistically update UI
+    setAttendanceData(prev => {
+        const studentAttendance = prev[studentId] ? [...prev[studentId]] : [];
+        const todayAttendanceIndex = studentAttendance.findIndex(a => isToday(new Date(a.date)));
+
+        if (todayAttendanceIndex > -1) {
+            studentAttendance[todayAttendanceIndex].present = !studentAttendance[todayAttendanceIndex].present;
+        } else {
+            studentAttendance.push({ date: formatISO(new Date()), present: true });
         }
-        return student;
-      })
+        return { ...prev, [studentId]: studentAttendance };
+    });
+  };
+
+  const resetAllPayments = async () => {
+    if (!firestore) return;
+    const batch = writeBatch(firestore);
+    const activeStudentsQuery = query(
+      collection(firestore, 'students'),
+      where('status', '==', 'Ativo')
+    );
+    const querySnapshot = await getDocs(activeStudentsQuery);
+    querySnapshot.forEach((doc) => {
+      batch.update(doc.ref, { paymentStatus: 'Pendente' });
+    });
+    await batch.commit();
+  };
+  
+    const getStudentAttendance = async (studentId: string): Promise<Attendance[]> => {
+    if (!firestore) return [];
+    const attendanceRef = collection(
+      firestore,
+      'students',
+      studentId,
+      'attendance'
+    );
+    const attendanceSnapshot = await getDocs(attendanceRef);
+    return attendanceSnapshot.docs.map(
+      (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
     );
   };
 
-  const resetAllPayments = () => {
-    setStudents((prev) =>
-      prev.map((student) =>
-        student.status === 'Ativo'
-          ? { ...student, paymentStatus: 'Pendente' }
-          : student
-      )
-    );
-  };
 
   const value = {
     students,
@@ -108,6 +204,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     deleteStudent,
     markAttendance,
     resetAllPayments,
+    getStudentAttendance,
   };
 
   return (

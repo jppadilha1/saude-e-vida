@@ -50,7 +50,7 @@ export default function PendingPaymentsTable({
                     <Badge variant="destructive">{student.paymentStatus}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {format(new Date(student.joinDate), 'dd/MM/yyyy')}
+                    {format(new Date(student.enrollmentDate), 'dd/MM/yyyy')}
                   </TableCell>
                 </TableRow>
               ))
