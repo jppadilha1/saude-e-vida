@@ -12,11 +12,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Search } from 'lucide-react';
+import { Loader2, PlusCircle, Search, Filter } from 'lucide-react';
 import StudentTable from './student-table';
 import { StudentDialog } from './student-dialog';
 import type { Student, StudentStatus, PaymentStatus } from '@/types';
 import { isToday } from 'date-fns';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type AttendanceFilter = 'todos' | 'presente' | 'ausente';
 
@@ -78,61 +85,71 @@ export default function StudentsClient() {
         </Button>
       </div>
 
-      <div className="space-y-4 rounded-lg border p-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-           <div className="space-y-2">
-            <Label htmlFor="search">Buscar por nome</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="search"
-                placeholder="Ex: Ana Silva"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="status">Status da Matrícula</Label>
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-              <SelectTrigger id="status">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="Ativo">Ativo</SelectItem>
-                <SelectItem value="Inativo">Inativo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="payment">Status da Mensalidade</Label>
-            <Select value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as any)}>
-              <SelectTrigger id="payment">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="Pago">Pago</SelectItem>
-                <SelectItem value="Pendente">Pendente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="attendance">Presença Hoje</Label>
-            <Select value={attendanceFilter} onValueChange={(value) => setAttendanceFilter(value as any)}>
-              <SelectTrigger id="attendance">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="presente">Presente</SelectItem>
-                <SelectItem value="ausente">Ausente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            id="search"
+            placeholder="Buscar por nome..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Filter className="mr-2 h-4 w-4" />
+              Filtros
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-64" align="end">
+            <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="p-2 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="status">Status da Matrícula</Label>
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payment">Status da Mensalidade</Label>
+                <Select value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as any)}>
+                  <SelectTrigger id="payment">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="Pago">Pago</SelectItem>
+                    <SelectItem value="Pendente">Pendente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="attendance">Presença Hoje</Label>
+                <Select value={attendanceFilter} onValueChange={(value) => setAttendanceFilter(value as any)}>
+                  <SelectTrigger id="attendance">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="presente">Presente</SelectItem>
+                    <SelectItem value="ausente">Ausente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
 
