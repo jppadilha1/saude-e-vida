@@ -14,6 +14,7 @@ import {
   useFirestore,
   useCollection,
   useMemoFirebase,
+  useUser,
 } from '@/firebase';
 import {
   collection,
@@ -57,9 +58,12 @@ const StudentContext = createContext<StudentContextType | undefined>(
 
 export function StudentProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser(); // Get user and auth loading state
+
+  // Only create the query if the user is authenticated
   const studentsRef = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'students') : null),
-    [firestore]
+    () => (firestore && user ? collection(firestore, 'students') : null),
+    [firestore, user]
   );
   const { data: studentsData, isLoading: studentsLoading } =
     useCollection<Student>(studentsRef);
@@ -101,7 +105,8 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     }));
   }, [studentsData, attendanceData]);
 
-  const loading = studentsLoading || attendanceLoading;
+  // The overall loading state depends on user authentication, students, and attendance
+  const loading = isUserLoading || studentsLoading || attendanceLoading;
 
   const addStudent = (studentData: {
     name: string;
@@ -161,7 +166,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         if (todayAttendanceIndex > -1) {
             studentAttendance[todayAttendanceIndex].present = !studentAttendance[todayAttendanceIndex].present;
         } else {
-            studentAttendance.push({ date: formatISO(new Date()), present: true });
+            studentAttendance.push({ id: 'temp-id', date: formatISO(new Date()), present: true });
         }
         return { ...prev, [studentId]: studentAttendance };
     });
