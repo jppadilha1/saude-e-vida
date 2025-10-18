@@ -49,7 +49,7 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
           <Logo />
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu>
+          <SidebarMenu className="gap-2">
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
