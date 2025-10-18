@@ -63,7 +63,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser(); // Get user and auth loading state
 
-  // Only create the query if the user is authenticated
+  // Only create the query if the user is authenticated and firestore is available
   const studentsRef = useMemoFirebase(
     () => (firestore && user ? collection(firestore, 'students') : null),
     [firestore, user]
@@ -76,6 +76,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   const [attendanceLoading, setAttendanceLoading] = useState(true);
 
   useEffect(() => {
+    // Wait until we have a user and student data is loaded.
     if (isUserLoading || !user || studentsLoading) return;
 
     if (!studentsData || studentsData.length === 0) {
@@ -125,8 +126,9 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     }));
   }, [studentsData, attendanceData]);
 
-  // The overall loading state depends on user authentication, students, and attendance
-  const loading = isUserLoading || studentsLoading || attendanceLoading;
+  // Overall loading state depends on user authentication and data fetching.
+  // If we don't have a user yet, we are loading.
+  const loading = isUserLoading || (!!user && (studentsLoading || attendanceLoading));
 
   const addStudent = (studentData: {
     name: string;
@@ -170,7 +172,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
       let docToUpdate;
       if (querySnapshot.empty) {
         docToUpdate = doc(attendanceRef); // Create a new doc reference
-        const data = { date: formatISO(new Date()), present: true };
+        const data = { date: formatISO(new Date()), present: true, studentId: studentId };
         setDocumentNonBlocking(docToUpdate, data, {});
       } else {
         docToUpdate = querySnapshot.docs[0].ref;
