@@ -30,6 +30,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
+          {/* O AuthProvider é movido para o Providers para envolver tudo */}
           <Providers>
             {children}
             <Toaster />

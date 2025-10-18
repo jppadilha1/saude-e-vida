@@ -4,7 +4,9 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { StudentProvider } from '@/contexts/student-context';
 
+// O AuthGuard agora envolve o StudentProvider
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const router = useRouter();
@@ -15,7 +17,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [auth.isAuthenticated, auth.loading, router]);
 
-  if (auth.loading) {
+  if (auth.loading || !auth.isAuthenticated) {
+    // Mostra o loader enquanto carrega ou redireciona
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -23,14 +26,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!auth.isAuthenticated) {
-    // Render a loader while redirecting to prevent content flash
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+  // Só renderiza o StudentProvider e os filhos se a autenticação for bem-sucedida
+  return <StudentProvider>{children}</StudentProvider>;
 }
