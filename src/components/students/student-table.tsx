@@ -44,12 +44,17 @@ type StudentTableProps = {
 };
 
 export default function StudentTable({ students, onEdit, onShowDetails, onShowAttendance }: StudentTableProps) {
-  const { deleteStudent } = useStudent();
+  const { deleteStudent, markAttendance } = useStudent();
 
   const hasAttendedToday = (student: StudentWithAttendance) => {
     const todayAttendance = student.attendance.find((a) => isToday(new Date(a.date)));
     return todayAttendance?.present;
   };
+  
+  const handleMarkTodayAttendance = (studentId: string, present: boolean) => {
+    markAttendance(studentId, present);
+  };
+
 
   return (
     <div className="rounded-lg border">
@@ -59,6 +64,7 @@ export default function StudentTable({ students, onEdit, onShowDetails, onShowAt
             <TableHead>Nome</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Mensalidade</TableHead>
+            <TableHead>Presença Hoje</TableHead>
             <TableHead>Histórico de Presença</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -83,18 +89,26 @@ export default function StudentTable({ students, onEdit, onShowDetails, onShowAt
                     {student.paymentStatus}
                   </Badge>
                 </TableCell>
+                 <TableCell>
+                  {student.status === 'Ativo' ? (
+                     <div className="flex items-center gap-2">
+                      {hasAttendedToday(student) && <CheckCircle className="h-5 w-5 text-green-500" title="Presente hoje" />}
+                      <Button size="sm" variant={hasAttendedToday(student) ? "default" : "outline"} onClick={() => handleMarkTodayAttendance(student.id, true)} disabled={hasAttendedToday(student) === true}>P</Button>
+                      <Button size="sm" variant={hasAttendedToday(student) === false ? "destructive" : "outline"} onClick={() => handleMarkTodayAttendance(student.id, false)} disabled={hasAttendedToday(student) === false}>F</Button>
+                    </div>
+                  ) : (
+                     <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   {student.status === 'Ativo' ? (
-                    <div className="flex items-center gap-2">
-                       {hasAttendedToday(student) && <CheckCircle className="h-5 w-5 text-green-500" title="Presente hoje" />}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onShowAttendance(student)}
-                        >
-                          Ver Histórico
-                        </Button>
-                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onShowAttendance(student)}
+                    >
+                      Ver Histórico
+                    </Button>
                   ) : (
                      <span className="text-muted-foreground">-</span>
                   )}
@@ -148,7 +162,7 @@ export default function StudentTable({ students, onEdit, onShowDetails, onShowAt
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={6} className="h-24 text-center">
                 Nenhum aluno encontrado para os filtros aplicados.
               </TableCell>
             </TableRow>

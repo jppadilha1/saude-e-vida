@@ -53,6 +53,7 @@ interface StudentContextType {
   ) => void;
   deleteStudent: (studentId: string) => void;
   markAttendance: (studentId: string, present: boolean) => void;
+  updateSpecificAttendance: (studentId: string, attendanceId: string, present: boolean) => void;
   resetAllPayments: () => void;
   getStudentAttendance: (studentId: string) => Promise<Attendance[]>;
   getStudentPayments: (studentId: string) => Promise<Payment[]>;
@@ -208,11 +209,32 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         if (todayAttendanceIndex > -1) {
             studentAttendance[todayAttendanceIndex].present = present;
         } else {
-            studentAttendance.push({ id: 'temp-id', date: formatISO(new Date()), present, studentId: studentId });
+            const newId = `temp-${Date.now()}`;
+            studentAttendance.push({ id: newId, date: formatISO(new Date()), present, studentId: studentId });
         }
         return { ...prev, [studentId]: studentAttendance };
     });
   };
+
+   const updateSpecificAttendance = (studentId: string, attendanceId: string, present: boolean) => {
+    if (!firestore || !user) return;
+    
+    const attendanceDocRef = doc(firestore, 'students', studentId, 'attendance', attendanceId);
+    updateDocumentNonBlocking(attendanceDocRef, { present });
+
+    // Optimistically update UI
+    setAttendanceData(prev => {
+      const studentAttendance = prev[studentId] ? [...prev[studentId]] : [];
+      const recordIndex = studentAttendance.findIndex(a => a.id === attendanceId);
+
+      if (recordIndex > -1) {
+        studentAttendance[recordIndex].present = present;
+      }
+      
+      return { ...prev, [studentId]: studentAttendance };
+    });
+  };
+
 
   const resetAllPayments = async () => {
     if (!firestore || !user) return;
@@ -286,6 +308,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     updateStudent,
     deleteStudent,
     markAttendance,
+    updateSpecificAttendance,
     resetAllPayments,
     getStudentAttendance,
     getStudentPayments,

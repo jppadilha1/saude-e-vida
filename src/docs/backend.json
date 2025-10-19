@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "Student": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Student",
+      "type": "object",
+      "description": "Represents a student in the academy.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Student entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the student."
+        },
+        "enrollmentDate": {
+          "type": "string",
+          "description": "The date the student enrolled.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Ativo",
+            "Inativo"
+          ],
+          "description": "The membership status of the student."
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": [
+            "Pago",
+            "Pendente"
+          ],
+          "description": "The payment status of the student."
+        },
+        "height": {
+          "type": "number",
+          "description": "The student's height in centimeters."
+        },
+        "weight": {
+          "type": "number",
+          "description": "The student's weight in kilograms."
+        },
+        "bodyMeasurements": {
+          "type": "object",
+          "description": "The student's body measurements in centimeters.",
+          "properties": {
+            "chest": {
+              "type": "number"
+            },
+            "waist": {
+              "type": "number"
+            },
+            "hips": {
+              "type": "number"
+            },
+            "leftArm": {
+              "type": "number"
+            },
+            "rightArm": {
+              "type": "number"
+            },
+            "leftThigh": {
+              "type": "number"
+            },
+            "rightThigh": {
+              "type": "number"
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Instructor's notes or observations about the student."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "enrollmentDate",
+        "status",
+        "paymentStatus"
+      ]
+    },
+    "Attendance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Attendance",
+      "type": "object",
+      "description": "Represents a student's attendance record.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Attendance entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to Student. (Relationship: Student 1:N Attendance)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the attendance record.",
+          "format": "date-time"
+        },
+        "present": {
+          "type": "boolean",
+          "description": "Indicates whether the student was present."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "date",
+        "present"
+      ]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment made by a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Payment entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to the Student."
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "The date the payment was made.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "paymentDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": {
+        "$ref": "#/entities/Student"
+      },
+      "description": "Stores student data."
+    },
+    "/students/{studentId}/attendance/{attendanceId}": {
+      "schema": {
+        "$ref": "#/entities/Attendance"
+      },
+      "description": "Stores attendance records for each student."
+    },
+    "/students/{studentId}/payments/{paymentId}": {
+      "schema": {
+        "$ref": "#/entities/Payment"
+      },
+      "description": "Stores payment history for each student."
+    }
+  }
+}
