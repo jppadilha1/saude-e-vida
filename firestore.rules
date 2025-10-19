@@ -1,101 +1,119 @@
 /**
  * @file Firestore Security Rules
- * @version 2
- *
- * @description
- * This ruleset enforces a strict user-ownership model for student data, attendance records, and payment history.
- * Only authenticated users can access data, and they can only access data associated with their own student ID.
- *
- * @dataStructure
- * - /students/{studentId}: Stores student profile information.
- * - /students/{studentId}/attendance/{attendanceId}: Stores attendance records for a specific student.
- * - /students/{studentId}/payments/{paymentId}: Stores payment history for a specific student.
- *
- * @keySecurityDecisions
- * - Students collection is not publicly listable
- * - All write operations are restricted to authenticated users with matching student IDs.
- *
- * @denormalizationForAuthorization
- * - The 'studentId' is used in the path for both 'attendance' and 'payments' collections, ensuring authorization can be performed without additional reads.
+ * @core_philosophy This ruleset enforces a strict user-ownership model for student data,
+ * ensuring that only the authenticated user who owns a student document or is accessing
+ * public information can read and write to it. Data consistency is enforced where appropriate.
+ * All write operations require authentication.
+ * @data_structure The data is structured hierarchically under /students/{studentId}, with
+ * attendance and payment subcollections for each student.
+ * @key_security_decisions
+ *   - Students can only be created by themselves (self-creation).
+ *   - Students can only read/write their own data.
+ *   - Listing all students is disallowed.
+ * @denormalization_for_authorization N/A - The rules rely on the path structure to enforce ownership, not denormalized data.
+ * @structural_segregation N/A - No explicit segregation of public vs. private data is defined.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Protects the /students collection. Only authenticated users can read or write data, and only if the `studentId` matches their `auth.uid`.
+     * @description Controls access to the /students collection. Only the student themselves can read and write their data.
      * @path /students/{studentId}
-     * @allow (get) An authenticated user can read a student document if the `studentId` matches their `auth.uid`.
-     * @allow (create) An authenticated user can create a student document if the `studentId` matches their `auth.uid`.
-     * @allow (update) An authenticated user can update a student document if the `studentId` matches their `auth.uid` and the document exists.
-     * @allow (delete) An authenticated user can delete a student document if the `studentId` matches their `auth.uid` and the document exists.
-     * @deny (get) An unauthenticated user cannot read a student document.
-     * @deny (create) An unauthenticated user cannot create a student document.
-     * @deny (update) An unauthenticated user cannot update a student document.
-     * @deny (delete) An unauthenticated user cannot delete a student document.
-     * @principle Enforces document ownership based on the `studentId` and `auth.uid`.
+     * @allow (create) - Authenticated user with UID matching the studentId can create the document.
+     * @allow (get, update, delete) - Authenticated user with UID matching the studentId can read, update, and delete the document.
+     * @deny (create) - Authenticated user with UID not matching the studentId cannot create the document.
+     * @deny (get, update, delete) - Authenticated user with UID not matching the studentId cannot read, update, and delete the document.
+     * @deny (list) - Listing students is not allowed.
+     * @principle Enforces document ownership for all operations.
      */
     match /students/{studentId} {
-      allow get: if isSignedIn() && isOwner(studentId);
-      allow list: if false; // Students collection is not publicly listable
-      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.id == studentId;
-      allow update: if isSignedIn() && isExistingOwner(studentId) && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isExistingOwner(studentId);
+      //Utility function to check user authentication
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      //Utility function to check ownership
+      function isOwner(studentId) {
+        return request.auth.uid == studentId;
+      }
+
+      //Utility function to check existing ownership for destructive operations
+      function isExistingOwner(studentId) {
+          return (isOwner(studentId) && resource != null);
+      }
+
+      allow get: if isOwner(studentId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(studentId);
+      allow update: if isExistingOwner(studentId);
+      allow delete: if isExistingOwner(studentId);
     }
 
     /**
-     * @description Protects the /students/{studentId}/attendance collection. Only authenticated users can read or write data, and only if the `studentId` matches their `auth.uid`.
+     * @description Controls access to the /students/{studentId}/attendance collection. Only the student themselves can read and write their attendance data.
      * @path /students/{studentId}/attendance/{attendanceId}
-     * @allow (get) An authenticated user can read an attendance document if the `studentId` matches their `auth.uid`.
-     * @allow (create) An authenticated user can create an attendance document if the `studentId` matches their `auth.uid`.
-     * @allow (update) An authenticated user can update an attendance document if the `studentId` matches their `auth.uid` and the document exists.
-     * @allow (delete) An authenticated user can delete an attendance document if the `studentId` matches their `auth.uid` and the document exists.
-     * @deny (get) An unauthenticated user cannot read an attendance document.
-     * @deny (create) An unauthenticated user cannot create an attendance document.
-     * @deny (update) An unauthenticated user cannot update an attendance document.
-     * @deny (delete) An unauthenticated user cannot delete an attendance document.
-     * @principle Enforces document ownership based on the `studentId` and `auth.uid`.
+     * @allow (create) - Authenticated user with UID matching the studentId can create attendance record.
+     * @allow (get, update, delete) - Authenticated user with UID matching the studentId can read, update, and delete attendance record.
+     * @deny (create) - Authenticated user with UID not matching the studentId cannot create the attendance record.
+     * @deny (get, update, delete) - Authenticated user with UID not matching the studentId cannot read, update, and delete the attendance record.
+     * @principle Enforces document ownership for all operations.
      */
     match /students/{studentId}/attendance/{attendanceId} {
-      allow get: if isSignedIn() && isOwner(studentId);
-      allow list: if isSignedIn() && isOwner(studentId);
-      allow create: if isSignedIn() && isOwner(studentId) ;
-      allow update: if isSignedIn() && isExistingOwner(studentId);
-      allow delete: if isSignedIn() && isExistingOwner(studentId);
+
+      //Utility function to check user authentication
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      //Utility function to check ownership
+      function isOwner(studentId) {
+        return request.auth.uid == studentId;
+      }
+
+      //Utility function to check existing ownership for destructive operations
+      function isExistingOwner(studentId) {
+          return (isOwner(studentId) && resource != null);
+      }
+
+      allow get: if isOwner(studentId);
+      allow list: if isOwner(studentId);
+      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.studentId == studentId;
+      allow update: if isExistingOwner(studentId);
+      allow delete: if isExistingOwner(studentId);
     }
 
     /**
-     * @description Protects the /students/{studentId}/payments collection. Only authenticated users can read or write data, and only if the `studentId` matches their `auth.uid`.
+     * @description Controls access to the /students/{studentId}/payments collection. Only the student themselves can read and write their payment data.
      * @path /students/{studentId}/payments/{paymentId}
-     * @allow (get) An authenticated user can read a payment document if the `studentId` matches their `auth.uid`.
-     * @allow (create) An authenticated user can create a payment document if the `studentId` matches their `auth.uid`.
-     * @allow (update) An authenticated user can update a payment document if the `studentId` matches their `auth.uid` and the document exists.
-     * @allow (delete) An authenticated user can delete a payment document if the `studentId` matches their `auth.uid` and the document exists.
-     * @deny (get) An unauthenticated user cannot read a payment document.
-     * @deny (create) An unauthenticated user cannot create a payment document.
-     * @deny (update) An unauthenticated user cannot update a payment document.
-     * @deny (delete) An unauthenticated user cannot delete a payment document.
-     * @principle Enforces document ownership based on the `studentId` and `auth.uid`.
+     * @allow (create) - Authenticated user with UID matching the studentId can create payment record.
+     * @allow (get, update, delete) - Authenticated user with UID matching the studentId can read, update, and delete payment record.
+     * @deny (create) - Authenticated user with UID not matching the studentId cannot create the payment record.
+     * @deny (get, update, delete) - Authenticated user with UID not matching the studentId cannot read, update, and delete the payment record.
+     * @principle Enforces document ownership for all operations.
      */
     match /students/{studentId}/payments/{paymentId} {
-      allow get: if isSignedIn() && isOwner(studentId);
-      allow list: if isSignedIn() && isOwner(studentId);
-      allow create: if isSignedIn() && isOwner(studentId);
-      allow update: if isSignedIn() && isExistingOwner(studentId);
-      allow delete: if isSignedIn() && isExistingOwner(studentId);
+
+      //Utility function to check user authentication
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      //Utility function to check ownership
+      function isOwner(studentId) {
+        return request.auth.uid == studentId;
+      }
+
+      //Utility function to check existing ownership for destructive operations
+      function isExistingOwner(studentId) {
+          return (isOwner(studentId) && resource != null);
+      }
+
+      allow get: if isOwner(studentId);
+      allow list: if isOwner(studentId);
+      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.studentId == studentId;
+      allow update: if isExistingOwner(studentId);
+      allow delete: if isExistingOwner(studentId);
     }
-  }
-
-  // Helper Functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-  function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
   }
 }
