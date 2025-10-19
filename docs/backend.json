@@ -34,6 +34,41 @@
             "Pendente"
           ],
           "description": "The payment status of the student."
+        },
+        "height": {
+          "type": "number",
+          "description": "The student's height in centimeters."
+        },
+        "weight": {
+          "type": "number",
+          "description": "The student's weight in kilograms."
+        },
+        "bodyMeasurements": {
+          "type": "object",
+          "description": "The student's body measurements in centimeters.",
+          "properties": {
+            "chest": {
+              "type": "number"
+            },
+            "waist": {
+              "type": "number"
+            },
+            "hips": {
+              "type": "number"
+            },
+            "leftArm": {
+              "type": "number"
+            },
+            "rightArm": {
+              "type": "number"
+            },
+            "leftThigh": {
+              "type": "number"
+            },
+            "rightThigh": {
+              "type": "number"
+            }
+          }
         }
       },
       "required": [

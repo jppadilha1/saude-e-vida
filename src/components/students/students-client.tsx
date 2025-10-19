@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, PlusCircle, Search, Filter, RefreshCw } from 'lucide-react';
 import StudentTable from './student-table';
 import { StudentDialog } from './student-dialog';
+import { StudentDetailsDialog } from './student-details-dialog';
 import type { Student, StudentStatus, PaymentStatus, Attendance } from '@/types';
 import { isToday } from 'date-fns';
 import {
@@ -44,6 +45,7 @@ type StudentWithAttendance = Student & { attendance: Attendance[] };
 export default function StudentsClient() {
   const { students, loading, resetAllPayments } = useStudent();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const { toast } = useToast();
 
@@ -60,6 +62,11 @@ export default function StudentsClient() {
   const handleEditStudent = (student: Student) => {
     setSelectedStudent(student);
     setDialogOpen(true);
+  };
+
+  const handleShowDetails = (student: Student) => {
+    setSelectedStudent(student);
+    setDetailsDialogOpen(true);
   };
 
   const handleResetPayments = () => {
@@ -201,10 +208,19 @@ export default function StudentsClient() {
       </div>
 
 
-      <StudentTable students={filteredStudents} onEdit={handleEditStudent} />
+      <StudentTable
+        students={filteredStudents}
+        onEdit={handleEditStudent}
+        onShowDetails={handleShowDetails}
+      />
       <StudentDialog
         isOpen={dialogOpen}
         setIsOpen={setDialogOpen}
+        student={selectedStudent}
+      />
+      <StudentDetailsDialog
+        isOpen={detailsDialogOpen}
+        setIsOpen={setDetailsDialogOpen}
         student={selectedStudent}
       />
     </div>

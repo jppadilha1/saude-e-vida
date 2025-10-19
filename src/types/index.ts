@@ -8,13 +8,25 @@ export type Attendance = {
   present: boolean;
 };
 
+export type BodyMeasurements = {
+  chest?: number;
+  waist?: number;
+  hips?: number;
+  leftArm?: number;
+  rightArm?: number;
+  leftThigh?: number;
+  rightThigh?: number;
+};
+
 export type Student = {
   id: string;
   name: string;
-  enrollmentDate: string; // Renamed from joinDate
+  enrollmentDate: string;
   status: StudentStatus;
   paymentStatus: PaymentStatus;
-  // Attendance is now a subcollection, so it's not part of the Student type directly
+  height?: number; // in cm
+  weight?: number; // in kg
+  bodyMeasurements?: BodyMeasurements;
 };
 
 export type Payment = {

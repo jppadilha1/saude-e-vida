@@ -40,9 +40,10 @@ type StudentWithAttendance = Student & { attendance: Attendance[] };
 type StudentTableProps = {
   students: StudentWithAttendance[];
   onEdit: (student: Student) => void;
+  onShowDetails: (student: Student) => void;
 };
 
-export default function StudentTable({ students, onEdit }: StudentTableProps) {
+export default function StudentTable({ students, onEdit, onShowDetails }: StudentTableProps) {
   const { markAttendance, deleteStudent } = useStudent();
   const { toast } = useToast();
 
@@ -124,6 +125,9 @@ export default function StudentTable({ students, onEdit }: StudentTableProps) {
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => onEdit(student)}>
                           Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onShowDetails(student)}>
+                          Mais Informações
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
