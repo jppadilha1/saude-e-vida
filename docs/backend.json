@@ -69,6 +69,10 @@
               "type": "number"
             }
           }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Instructor's notes or observations about the student."
         }
       },
       "required": [

@@ -22,11 +22,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useStudent } from '@/contexts/student-context';
 import type { Student, BodyMeasurements } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Ruler, Weight, Scale, VenetianMask } from 'lucide-react';
+import { Ruler, Weight, Scale, VenetianMask, MessageSquareText } from 'lucide-react';
 
 const positiveNumberSchema = z.coerce
   .number()
@@ -46,6 +47,7 @@ const detailsSchema = z.object({
     leftThigh: positiveNumberSchema,
     rightThigh: positiveNumberSchema,
   }).optional(),
+  notes: z.string().optional(),
 });
 
 type DetailsFormValues = z.infer<typeof detailsSchema>;
@@ -85,6 +87,7 @@ export function StudentDetailsDialog({
         leftThigh: '',
         rightThigh: '',
       },
+      notes: '',
     },
   });
 
@@ -108,6 +111,7 @@ export function StudentDetailsDialog({
           leftThigh: student.bodyMeasurements?.leftThigh || '',
           rightThigh: student.bodyMeasurements?.rightThigh || '',
         },
+        notes: student.notes || '',
       });
     }
   }, [student, form, isOpen]);
@@ -123,7 +127,8 @@ export function StudentDetailsDialog({
             acc[key as keyof BodyMeasurements] = Number(value);
           }
           return acc;
-        }, {} as BodyMeasurements)
+        }, {} as BodyMeasurements),
+        notes: data.notes,
       };
       
       updateStudent(student.id, updatedData, student);
@@ -138,7 +143,7 @@ export function StudentDetailsDialog({
         <DialogHeader>
           <DialogTitle>Mais Informações: {student?.name}</DialogTitle>
           <DialogDescription>
-            Visualize e edite as informações físicas do aluno.
+            Visualize e edite as informações físicas e observações do aluno.
           </DialogDescription>
         </DialogHeader>
         
@@ -278,6 +283,28 @@ export function StudentDetailsDialog({
                     />
                 </div>
              </div>
+
+            {/* Observações */}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center text-lg font-semibold">
+                    <MessageSquareText className="mr-2 h-5 w-5" /> Observações
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Adicione observações sobre o aluno, como lesões, metas, etc."
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
              <DialogFooter className="pt-4 !mt-8">
                 <DialogClose asChild>
                     <Button type="button" variant="outline">Cancelar</Button>

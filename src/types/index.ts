@@ -27,6 +27,7 @@ export type Student = {
   height?: number; // in cm
   weight?: number; // in kg
   bodyMeasurements?: BodyMeasurements;
+  notes?: string;
 };
 
 export type Payment = {
