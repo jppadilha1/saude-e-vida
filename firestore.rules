@@ -1,119 +1,71 @@
 /**
- * @file Firestore Security Rules
- * @core_philosophy This ruleset enforces a strict user-ownership model for student data,
- * ensuring that only the authenticated user who owns a student document or is accessing
- * public information can read and write to it. Data consistency is enforced where appropriate.
- * All write operations require authentication.
- * @data_structure The data is structured hierarchically under /students/{studentId}, with
- * attendance and payment subcollections for each student.
- * @key_security_decisions
- *   - Students can only be created by themselves (self-creation).
- *   - Students can only read/write their own data.
- *   - Listing all students is disallowed.
- * @denormalization_for_authorization N/A - The rules rely on the path structure to enforce ownership, not denormalized data.
- * @structural_segregation N/A - No explicit segregation of public vs. private data is defined.
+ * @fileoverview Firestore Security Rules for the academy application.
+ *
+ * Core Philosophy:
+ * This ruleset implements an administrator-only access model. Only the user with the specified UID ('9LEIXoYmuzda2PrdFzhfPrv4pE93') has full read and write access to all data.
+ *
+ * Data Structure:
+ * Data is organized under the following collections:
+ * - /students/{studentId}: Stores student data.
+ * - /students/{studentId}/attendance/{attendanceId}: Stores attendance records for each student.
+ * - /students/{studentId}/payments/{paymentId}: Stores payment history for each student.
+ *
+ * Key Security Decisions:
+ * - Administrator-Only Access: Only a specific user (defined by ADMIN_UID) is granted full access. All other users are denied access.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Define the administrator's UID
+    function isAdmin() {
+      return request.auth.uid == '9LEIXoYmuzda2PrdFzhfPrv4pE93';
+    }
+
+    function isSignedIn() {
+        return request.auth != null;
+    }
+
     /**
-     * @description Controls access to the /students collection. Only the student themselves can read and write their data.
+     * @description Controls access to the /students collection.
      * @path /students/{studentId}
-     * @allow (create) - Authenticated user with UID matching the studentId can create the document.
-     * @allow (get, update, delete) - Authenticated user with UID matching the studentId can read, update, and delete the document.
-     * @deny (create) - Authenticated user with UID not matching the studentId cannot create the document.
-     * @deny (get, update, delete) - Authenticated user with UID not matching the studentId cannot read, update, and delete the document.
-     * @deny (list) - Listing students is not allowed.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create, update, delete) if the user is the administrator.
+     * @allow (get, list) if the user is the administrator.
+     * @deny (create, update, delete) if the user is not the administrator.
+     * @deny (get, list) if the user is not the administrator.
+     * @principle Enforces administrator-only access to student data.
      */
     match /students/{studentId} {
-      //Utility function to check user authentication
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      //Utility function to check ownership
-      function isOwner(studentId) {
-        return request.auth.uid == studentId;
-      }
-
-      //Utility function to check existing ownership for destructive operations
-      function isExistingOwner(studentId) {
-          return (isOwner(studentId) && resource != null);
-      }
-
-      allow get: if isOwner(studentId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(studentId);
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
 
     /**
-     * @description Controls access to the /students/{studentId}/attendance collection. Only the student themselves can read and write their attendance data.
+     * @description Controls access to the /students/{studentId}/attendance collection.
      * @path /students/{studentId}/attendance/{attendanceId}
-     * @allow (create) - Authenticated user with UID matching the studentId can create attendance record.
-     * @allow (get, update, delete) - Authenticated user with UID matching the studentId can read, update, and delete attendance record.
-     * @deny (create) - Authenticated user with UID not matching the studentId cannot create the attendance record.
-     * @deny (get, update, delete) - Authenticated user with UID not matching the studentId cannot read, update, and delete the attendance record.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create, update, delete) if the user is the administrator.
+     * @allow (get, list) if the user is the administrator.
+     * @deny (create, update, delete) if the user is not the administrator.
+     * @deny (get, list) if the user is not the administrator.
+     * @principle Enforces administrator-only access to student attendance data.
      */
     match /students/{studentId}/attendance/{attendanceId} {
-
-      //Utility function to check user authentication
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      //Utility function to check ownership
-      function isOwner(studentId) {
-        return request.auth.uid == studentId;
-      }
-
-      //Utility function to check existing ownership for destructive operations
-      function isExistingOwner(studentId) {
-          return (isOwner(studentId) && resource != null);
-      }
-
-      allow get: if isOwner(studentId);
-      allow list: if isOwner(studentId);
-      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.studentId == studentId;
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
 
     /**
-     * @description Controls access to the /students/{studentId}/payments collection. Only the student themselves can read and write their payment data.
+     * @description Controls access to the /students/{studentId}/payments collection.
      * @path /students/{studentId}/payments/{paymentId}
-     * @allow (create) - Authenticated user with UID matching the studentId can create payment record.
-     * @allow (get, update, delete) - Authenticated user with UID matching the studentId can read, update, and delete payment record.
-     * @deny (create) - Authenticated user with UID not matching the studentId cannot create the payment record.
-     * @deny (get, update, delete) - Authenticated user with UID not matching the studentId cannot read, update, and delete the payment record.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create, update, delete) if the user is the administrator.
+     * @allow (get, list) if the user is the administrator.
+     * @deny (create, update, delete) if the user is not the administrator.
+     * @deny (get, list) if the user is not the administrator.
+     * @principle Enforces administrator-only access to student payment data.
      */
     match /students/{studentId}/payments/{paymentId} {
-
-      //Utility function to check user authentication
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      //Utility function to check ownership
-      function isOwner(studentId) {
-        return request.auth.uid == studentId;
-      }
-
-      //Utility function to check existing ownership for destructive operations
-      function isExistingOwner(studentId) {
-          return (isOwner(studentId) && resource != null);
-      }
-
-      allow get: if isOwner(studentId);
-      allow list: if isOwner(studentId);
-      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.studentId == studentId;
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
   }
 }
