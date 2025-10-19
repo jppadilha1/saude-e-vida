@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, LogOut, User, Users } from 'lucide-react';
+import { LayoutDashboard, LogOut, User, Users, Dumbbell } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -60,6 +60,19 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
                 <Link href="/">
                   <LayoutDashboard />
                   <span className="text-base">Painel</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === '/workouts'}
+                tooltip="Treinos"
+                size="lg"
+              >
+                <Link href="/workouts">
+                  <Dumbbell />
+                  <span className="text-base">Treinos</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
