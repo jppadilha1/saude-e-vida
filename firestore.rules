@@ -1,126 +1,108 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for student data,
- * attendance records, and payment history. Only the authenticated user who "owns"
- * a particular student document can read or write to it and its subcollections.
+ * @fileOverview Firestore Security Rules for the academy app.
+ *
+ * Core Philosophy:
+ * This ruleset implements a strict user-ownership model for student data. Only authenticated users can access student records and their associated attendance and payment information.
  *
  * Data Structure:
- * - /students/{studentId}: Stores student profiles.  The {studentId} MUST match the
- *   authenticated user's UID for ownership to be established.
- * - /students/{studentId}/attendance/{attendanceId}: Stores attendance records for a student.
- *   Inherits ownership from the parent student document.
+ * - /students/{studentId}: Stores student profile data.
+ * - /students/{studentId}/attendance/{attendanceId}: Stores individual attendance records for a student.
  * - /students/{studentId}/payments/{paymentId}: Stores payment records for a student.
- *   Inherits ownership from the parent student document.
  *
  * Key Security Decisions:
- * - User data is private and only accessible to the owning user.
- * - Listing of all students is disallowed to prevent information leakage.
- * - Data consistency between the path and the document's internal fields is enforced
- *   on creation and updates to prevent unauthorized data manipulation.
+ * - Listing of the /students collection is disallowed to prevent unauthorized data enumeration.
+ * - All write operations require an authenticated user.
+ * - Data consistency between document IDs and path segments is enforced to maintain relational integrity.
  *
  * Denormalization for Authorization:
- *  - The `studentId` is used in the path `/students/{studentId}` and is implicitly
- *    the owner. This is validated against `request.auth.uid` for authorization.
- *
- * Structural Segregation:
- *  - Private student data is stored under the `/students/{studentId}` path, ensuring
- *    that only the owning user can access it.  There is no public data in this model.
+ *  The `studentId` is used within subcollections (`attendance`, `payments`) to enforce ownership and avoid `get()` calls.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures the student profiles collection, ensuring only the owner can read and write.
+     * @description Enforces access control for the /students collection.
      * @path /students/{studentId}
-     * @allow (create) - Authenticated user with UID 'user123' can create a student document with ID 'user123'.
-     * @allow (get, update, delete) - Authenticated user with UID 'user123' can access/modify a student document with ID 'user123'.
-     * @deny (create) - Authenticated user with UID 'user456' cannot create a student document with ID 'user123'.
-     * @deny (get, update, delete) - Authenticated user with UID 'user456' cannot access/modify a student document with ID 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) Authenticated user creates a student profile where the studentId matches their own user ID.
+     * @deny (create) User attempts to create a student profile with a mismatched studentId.
+     * @allow (get) Authenticated user retrieves their own student profile.
+     * @deny (get) Unauthenticated user attempts to retrieve a student profile.
+     * @allow (list) Listing of all students is not permitted.
+     * @deny (list) Any attempt to list the /students collection.
+     * @allow (update) Authenticated user updates their own student profile.
+     * @deny (update) User attempts to update a student profile they do not own.
+     * @allow (delete) Authenticated user deletes their own student profile.
+     * @deny (delete) User attempts to delete a student profile they do not own.
+     * @principle Enforces document ownership for writes, restricts listing of user data, and validates ownership on creation.
      */
     match /students/{studentId} {
-      // Check if the user is signed in
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      // Check if the requested user id is the same as the currently authenticated user id.
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      // Check if the user is the owner and the document exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-      allow get: if isOwner(studentId);
-      allow list: if false; // Listing all students is not permitted.
+      allow get: if isSignedIn() && isOwner(studentId);
+      allow list: if false;
       allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.id == studentId;
-      allow update: if isExistingOwner(studentId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(studentId);
+      allow update: if isSignedIn() && isExistingOwner(studentId) && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && isExistingOwner(studentId);
     }
 
     /**
-     * @description Secures the attendance records subcollection, ensuring only the owner of the student document can read and write.
+     * @description Enforces access control for the /students/{studentId}/attendance collection.
      * @path /students/{studentId}/attendance/{attendanceId}
-     * @allow (create) - Authenticated user with UID 'user123' can create an attendance document under student 'user123'.
-     * @allow (get, list, update, delete) - Authenticated user with UID 'user123' can access/modify attendance documents under student 'user123'.
-     * @deny (create) - Authenticated user with UID 'user456' cannot create an attendance document under student 'user123'.
-     * @deny (get, list, update, delete) - Authenticated user with UID 'user456' cannot access/modify attendance documents under student 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) Authenticated user creates an attendance record for their own student profile.
+     * @deny (create) User attempts to create an attendance record for a student profile they do not own.
+     * @allow (get) Authenticated user retrieves an attendance record for their own student profile.
+     * @deny (get) Unauthenticated user attempts to retrieve an attendance record.
+     * @allow (list) Authenticated user lists attendance records for their own student profile.
+     * @deny (list) User attempts to list attendance records for a student profile they do not own.
+     * @allow (update) Authenticated user updates an attendance record for their own student profile.
+     * @deny (update) User attempts to update an attendance record they do not own.
+     * @allow (delete) Authenticated user deletes an attendance record for their own student profile.
+     * @deny (delete) User attempts to delete an attendance record they do not own.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, and validates relational integrity between documents.
      */
     match /students/{studentId}/attendance/{attendanceId} {
-      // Check if the user is signed in
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      // Check if the requested user id is the same as the currently authenticated user id.
-      function isOwner(studentId) {
-        return request.auth.uid == studentId;
-      }
-
-      // Check if the user is the owner and the document exists
-      function isExistingOwner(studentId) {
-        return isOwner(studentId) && resource != null;
-      }
-      allow get: if isOwner(studentId);
-      allow list: if isOwner(studentId);
-      allow create: if isSignedIn() && isOwner(studentId);
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow get: if isSignedIn() && isOwner(studentId);
+      allow list: if isSignedIn() && isOwner(studentId);
+      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.studentId == studentId;
+      allow update: if isSignedIn() && isExistingOwner(studentId) && resource.data.studentId == studentId;
+      allow delete: if isSignedIn() && isExistingOwner(studentId) && resource.data.studentId == studentId;
     }
 
     /**
-     * @description Secures the payments subcollection, ensuring only the owner of the student document can read and write.
+     * @description Enforces access control for the /students/{studentId}/payments collection.
      * @path /students/{studentId}/payments/{paymentId}
-     * @allow (create) - Authenticated user with UID 'user123' can create a payment document under student 'user123'.
-     * @allow (get, list, update, delete) - Authenticated user with UID 'user123' can access/modify payment documents under student 'user123'.
-     * @deny (create) - Authenticated user with UID 'user456' cannot create a payment document under student 'user123'.
-     * @deny (get, list, update, delete) - Authenticated user with UID 'user456' cannot access/modify payment documents under student 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) Authenticated user creates a payment record for their own student profile.
+     * @deny (create) User attempts to create a payment record for a student profile they do not own.
+     * @allow (get) Authenticated user retrieves a payment record for their own student profile.
+     * @deny (get) Unauthenticated user attempts to retrieve a payment record.
+     * @allow (list) Authenticated user lists payment records for their own student profile.
+     * @deny (list) User attempts to list payment records for a student profile they do not own.
+     * @allow (update) Authenticated user updates a payment record for their own student profile.
+     * @deny (update) User attempts to update a payment record they do not own.
+     * @allow (delete) Authenticated user deletes a payment record for their own student profile.
+     * @deny (delete) User attempts to delete a payment record they do not own.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, and validates relational integrity between documents.
      */
     match /students/{studentId}/payments/{paymentId} {
-      // Check if the user is signed in
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      // Check if the requested user id is the same as the currently authenticated user id.
-      function isOwner(studentId) {
-        return request.auth.uid == studentId;
-      }
-
-      // Check if the user is the owner and the document exists
-      function isExistingOwner(studentId) {
-        return isOwner(studentId) && resource != null;
-      }
-      allow get: if isOwner(studentId);
-      allow list: if isOwner(studentId);
-      allow create: if isSignedIn() && isOwner(studentId);
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow get: if isSignedIn() && isOwner(studentId);
+      allow list: if isSignedIn() && isOwner(studentId);
+      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.studentId == studentId;
+      allow update: if isSignedIn() && isExistingOwner(studentId) && resource.data.studentId == studentId;
+      allow delete: if isSignedIn() && isExistingOwner(studentId) && resource.data.studentId == studentId;
     }
+  }
+
+  // Helper function to determine if the user is signed in.
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  // Helper function to determine if the user is the owner of the document.
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+    // Helper function to determine if the user is the owner of the document AND it exists.
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }
