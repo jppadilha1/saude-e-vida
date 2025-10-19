@@ -40,9 +40,10 @@ type StudentTableProps = {
   onEdit: (student: Student) => void;
   onShowDetails: (student: Student) => void;
   onShowAttendance: (student: StudentWithAttendance) => void;
+  onShowWorkouts: (student: Student) => void;
 };
 
-export default function StudentTable({ students, onEdit, onShowDetails, onShowAttendance }: StudentTableProps) {
+export default function StudentTable({ students, onEdit, onShowDetails, onShowAttendance, onShowWorkouts }: StudentTableProps) {
   const { deleteStudent } = useStudent();
 
   return (
@@ -106,6 +107,9 @@ export default function StudentTable({ students, onEdit, onShowDetails, onShowAt
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onShowDetails(student)}>
                           Mais Informações
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onShowWorkouts(student)}>
+                          Treinos
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>

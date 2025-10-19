@@ -28,6 +28,7 @@ import StudentTable from './student-table';
 import { StudentDialog } from './student-dialog';
 import { StudentDetailsDialog } from './student-details-dialog';
 import { StudentAttendanceDialog } from './student-attendance-dialog';
+import { StudentWorkoutDialog } from './student-workout-dialog'; // Importar o novo diálogo
 import type { Student, StudentStatus, PaymentStatus, Attendance } from '@/types';
 import { isToday } from 'date-fns';
 import {
@@ -48,6 +49,7 @@ export default function StudentsClient() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+  const [workoutDialogOpen, setWorkoutDialogOpen] = useState(false); // Estado para o novo diálogo
   const [selectedStudent, setSelectedStudent] = useState<StudentWithAttendance | null>(null);
   const { toast } = useToast();
 
@@ -74,6 +76,11 @@ export default function StudentsClient() {
   const handleShowAttendance = (student: StudentWithAttendance) => {
     setSelectedStudent(student);
     setAttendanceDialogOpen(true);
+  };
+
+  const handleShowWorkouts = (student: Student) => {
+    setSelectedStudent(student as StudentWithAttendance);
+    setWorkoutDialogOpen(true);
   };
 
   const handleResetPayments = () => {
@@ -220,6 +227,7 @@ export default function StudentsClient() {
         onEdit={handleEditStudent}
         onShowDetails={handleShowDetails}
         onShowAttendance={handleShowAttendance}
+        onShowWorkouts={handleShowWorkouts}
       />
       <StudentDialog
         isOpen={dialogOpen}
@@ -234,6 +242,11 @@ export default function StudentsClient() {
       <StudentAttendanceDialog
         isOpen={attendanceDialogOpen}
         setIsOpen={setAttendanceDialogOpen}
+        student={selectedStudent}
+      />
+      <StudentWorkoutDialog
+        isOpen={workoutDialogOpen}
+        setIsOpen={setWorkoutDialogOpen}
         student={selectedStudent}
       />
     </div>
