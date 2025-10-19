@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +14,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import {
   Form,
   FormControl,
@@ -30,8 +38,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useStudent } from '@/contexts/student-context';
-import type { Student, StudentStatus, PaymentStatus } from '@/types';
+import type { Student, StudentStatus, PaymentStatus, Payment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { Calendar, History, Loader2 } from 'lucide-react';
 
 const studentSchema = z.object({
   name: z.string().min(2, { message: 'O nome deve ter pelo menos 2 caracteres.' }),
@@ -52,9 +61,12 @@ export function StudentDialog({
   setIsOpen,
   student,
 }: StudentDialogProps) {
-  const { addStudent, updateStudent } = useStudent();
+  const { addStudent, updateStudent, getStudentPayments } = useStudent();
   const { toast } = useToast();
   const isEditing = !!student;
+
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(false);
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema),
@@ -73,19 +85,25 @@ export function StudentDialog({
           status: student.status,
           paymentStatus: student.paymentStatus,
         });
+        // Fetch payment history
+        setIsLoadingPayments(true);
+        getStudentPayments(student.id)
+          .then(setPayments)
+          .finally(() => setIsLoadingPayments(false));
       } else {
         form.reset({
           name: '',
           status: 'Ativo',
           paymentStatus: 'Pago',
         });
+        setPayments([]);
       }
     }
-  }, [student, form, isOpen]);
+  }, [student, form, isOpen, getStudentPayments]);
 
   const onSubmit = (data: StudentFormValues) => {
     if (isEditing && student) {
-      updateStudent(student.id, data);
+      updateStudent(student.id, data, student);
       toast({ title: 'Sucesso', description: 'Aluno atualizado com sucesso.' });
     } else {
       addStudent(data);
@@ -169,6 +187,44 @@ export function StudentDialog({
                 </FormItem>
               )}
             />
+
+            {isEditing && (
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2">
+                       <History className="h-4 w-4" /> Histórico de Pagamentos
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {isLoadingPayments ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      </div>
+                    ) : payments.length > 0 ? (
+                      <ul className="space-y-2 pt-2">
+                        {payments.map((payment) => (
+                          <li key={payment.id} className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <Calendar className="h-4 w-4 flex-shrink-0" />
+                            <span>
+                              Pagamento recebido em{' '}
+                              <span className="font-semibold text-foreground">
+                                {format(new Date(payment.paymentDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                              </span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="pt-2 text-center text-sm text-muted-foreground">
+                        Nenhum pagamento registrado.
+                      </p>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
+            
             <DialogFooter>
               <Button type="submit">
                 {isEditing ? 'Salvar Alterações' : 'Adicionar Aluno'}

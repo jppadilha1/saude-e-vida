@@ -9,7 +9,7 @@ import React, {
   useMemo,
 } from 'react';
 import { formatISO, isToday } from 'date-fns';
-import type { Student, StudentStatus, PaymentStatus, Attendance } from '@/types';
+import type { Student, StudentStatus, PaymentStatus, Attendance, Payment } from '@/types';
 import {
   useFirestore,
   useCollection,
@@ -24,6 +24,7 @@ import {
   where,
   getDocs,
   serverTimestamp,
+  orderBy,
 } from 'firebase/firestore';
 import {
   addDocumentNonBlocking,
@@ -47,12 +48,14 @@ interface StudentContextType {
   }) => void;
   updateStudent: (
     studentId: string,
-    updatedData: Partial<Omit<Student, 'id'>>
+    updatedData: Partial<Omit<Student, 'id'>>,
+    originalStudent: Student
   ) => void;
   deleteStudent: (studentId: string) => void;
   markAttendance: (studentId: string) => void;
   resetAllPayments: () => void;
   getStudentAttendance: (studentId: string) => Promise<Attendance[]>;
+  getStudentPayments: (studentId: string) => Promise<Payment[]>;
 }
 
 const StudentContext = createContext<StudentContextType | undefined>(
@@ -145,11 +148,21 @@ export function StudentProvider({ children }: { children: ReactNode }) {
 
   const updateStudent = (
     studentId: string,
-    updatedData: Partial<Omit<Student, 'id'>>
+    updatedData: Partial<Omit<Student, 'id'>>,
+    originalStudent: Student
   ) => {
     if (!firestore || !user) return;
     const studentDocRef = doc(firestore, 'students', studentId);
     updateDocumentNonBlocking(studentDocRef, updatedData);
+
+    // If payment status changed to 'Pago', log the payment.
+    if (updatedData.paymentStatus === 'Pago' && originalStudent.paymentStatus !== 'Pago') {
+      const paymentsCollection = collection(firestore, 'students', studentId, 'payments');
+      addDocumentNonBlocking(paymentsCollection, {
+        studentId: studentId,
+        paymentDate: formatISO(new Date()),
+      });
+    }
   };
 
   const deleteStudent = (studentId: string) => {
@@ -247,6 +260,25 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const getStudentPayments = async (studentId: string): Promise<Payment[]> => {
+    if (!firestore || !user) return [];
+    const paymentsRef = collection(firestore, 'students', studentId, 'payments');
+    const q = query(paymentsRef, orderBy('paymentDate', 'desc'));
+    try {
+      const paymentsSnapshot = await getDocs(q);
+      return paymentsSnapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as Payment)
+      );
+    } catch (e) {
+      const permissionError = new FirestorePermissionError({
+        path: paymentsRef.path,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      return [];
+    }
+  };
+
 
   const value = {
     students,
@@ -257,6 +289,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     markAttendance,
     resetAllPayments,
     getStudentAttendance,
+    getStudentPayments,
   };
 
   return (
@@ -271,5 +304,3 @@ export function useStudent() {
   }
   return context;
 }
-
-    

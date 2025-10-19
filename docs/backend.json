@@ -74,6 +74,32 @@
         "date",
         "isPresent"
       ]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment made by a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Payment entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to the Student."
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "The date the payment was made.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "paymentDate"
+      ]
     }
   },
   "auth": {
@@ -94,6 +120,12 @@
         "$ref": "#/entities/Attendance"
       },
       "description": "Stores attendance records for each student."
+    },
+    "/students/{studentId}/payments/{paymentId}": {
+      "schema": {
+        "$ref": "#/entities/Payment"
+      },
+      "description": "Stores payment history for each student."
     }
   }
 }

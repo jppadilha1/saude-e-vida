@@ -16,3 +16,9 @@ export type Student = {
   paymentStatus: PaymentStatus;
   // Attendance is now a subcollection, so it's not part of the Student type directly
 };
+
+export type Payment = {
+  id: string;
+  studentId: string;
+  paymentDate: string;
+};
