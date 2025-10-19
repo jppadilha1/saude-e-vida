@@ -33,7 +33,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { CheckCircle, MoreHorizontal } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 type StudentWithAttendance = Student & { attendance: Attendance[] };
 
@@ -41,19 +40,11 @@ type StudentTableProps = {
   students: StudentWithAttendance[];
   onEdit: (student: Student) => void;
   onShowDetails: (student: Student) => void;
+  onShowAttendance: (student: StudentWithAttendance) => void;
 };
 
-export default function StudentTable({ students, onEdit, onShowDetails }: StudentTableProps) {
-  const { markAttendance, deleteStudent } = useStudent();
-  const { toast } = useToast();
-
-  const handleMarkAttendance = (studentId: string, studentName: string) => {
-    markAttendance(studentId);
-    toast({
-      title: 'Presença Registrada',
-      description: `A presença de ${studentName} foi atualizada.`,
-    });
-  };
+export default function StudentTable({ students, onEdit, onShowDetails, onShowAttendance }: StudentTableProps) {
+  const { deleteStudent } = useStudent();
 
   const hasAttendedToday = (student: StudentWithAttendance) => {
     const todayAttendance = student.attendance.find((a) => isToday(new Date(a.date)));
@@ -68,7 +59,7 @@ export default function StudentTable({ students, onEdit, onShowDetails }: Studen
             <TableHead>Nome</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Mensalidade</TableHead>
-            <TableHead>Presença Hoje</TableHead>
+            <TableHead>Histórico de Presença</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -94,20 +85,16 @@ export default function StudentTable({ students, onEdit, onShowDetails }: Studen
                 </TableCell>
                 <TableCell>
                   {student.status === 'Ativo' ? (
-                     hasAttendedToday(student) ? (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                          <span className="text-sm text-muted-foreground">Presente</span>
-                        </div>
-                      ) : (
+                    <div className="flex items-center gap-2">
+                       {hasAttendedToday(student) && <CheckCircle className="h-5 w-5 text-green-500" title="Presente hoje" />}
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleMarkAttendance(student.id, student.name)}
+                          onClick={() => onShowAttendance(student)}
                         >
-                          Marcar Presença
+                          Ver Histórico
                         </Button>
-                      )
+                    </div>
                   ) : (
                      <span className="text-muted-foreground">-</span>
                   )}

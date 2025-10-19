@@ -52,7 +52,7 @@ interface StudentContextType {
     originalStudent: Student
   ) => void;
   deleteStudent: (studentId: string) => void;
-  markAttendance: (studentId: string) => void;
+  markAttendance: (studentId: string, present: boolean) => void;
   resetAllPayments: () => void;
   getStudentAttendance: (studentId: string) => Promise<Attendance[]>;
   getStudentPayments: (studentId: string) => Promise<Payment[]>;
@@ -171,7 +171,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     deleteDocumentNonBlocking(studentDocRef);
   };
 
-  const markAttendance = (studentId: string) => {
+  const markAttendance = (studentId: string, present: boolean) => {
     if (!firestore || !user) return;
     const today = formatISO(new Date(), { representation: 'date' });
     const attendanceRef = collection(firestore, 'students', studentId, 'attendance');
@@ -185,12 +185,11 @@ export function StudentProvider({ children }: { children: ReactNode }) {
       let docToUpdate;
       if (querySnapshot.empty) {
         docToUpdate = doc(attendanceRef); // Create a new doc reference
-        const data = { date: formatISO(new Date()), present: true, studentId: studentId };
+        const data = { date: formatISO(new Date()), present, studentId: studentId };
         setDocumentNonBlocking(docToUpdate, data, {});
       } else {
         docToUpdate = querySnapshot.docs[0].ref;
-        const currentStatus = querySnapshot.docs[0].data().present;
-        const data = { present: !currentStatus };
+        const data = { present };
         updateDocumentNonBlocking(docToUpdate, data);
       }
     }).catch(error => {
@@ -207,9 +206,9 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         const todayAttendanceIndex = studentAttendance.findIndex(a => isToday(new Date(a.date)));
 
         if (todayAttendanceIndex > -1) {
-            studentAttendance[todayAttendanceIndex].present = !studentAttendance[todayAttendanceIndex].present;
+            studentAttendance[todayAttendanceIndex].present = present;
         } else {
-            studentAttendance.push({ id: 'temp-id', date: formatISO(new Date()), present: true, studentId: studentId });
+            studentAttendance.push({ id: 'temp-id', date: formatISO(new Date()), present, studentId: studentId });
         }
         return { ...prev, [studentId]: studentAttendance };
     });

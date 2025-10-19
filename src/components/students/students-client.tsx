@@ -27,6 +27,7 @@ import { Loader2, PlusCircle, Search, Filter, RefreshCw } from 'lucide-react';
 import StudentTable from './student-table';
 import { StudentDialog } from './student-dialog';
 import { StudentDetailsDialog } from './student-details-dialog';
+import { StudentAttendanceDialog } from './student-attendance-dialog';
 import type { Student, StudentStatus, PaymentStatus, Attendance } from '@/types';
 import { isToday } from 'date-fns';
 import {
@@ -46,7 +47,8 @@ export default function StudentsClient() {
   const { students, loading, resetAllPayments } = useStudent();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentWithAttendance | null>(null);
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,13 +62,18 @@ export default function StudentsClient() {
   };
 
   const handleEditStudent = (student: Student) => {
-    setSelectedStudent(student);
+    setSelectedStudent(student as StudentWithAttendance);
     setDialogOpen(true);
   };
 
   const handleShowDetails = (student: Student) => {
-    setSelectedStudent(student);
+    setSelectedStudent(student as StudentWithAttendance);
     setDetailsDialogOpen(true);
+  };
+  
+  const handleShowAttendance = (student: StudentWithAttendance) => {
+    setSelectedStudent(student);
+    setAttendanceDialogOpen(true);
   };
 
   const handleResetPayments = () => {
@@ -212,6 +219,7 @@ export default function StudentsClient() {
         students={filteredStudents}
         onEdit={handleEditStudent}
         onShowDetails={handleShowDetails}
+        onShowAttendance={handleShowAttendance}
       />
       <StudentDialog
         isOpen={dialogOpen}
@@ -221,6 +229,11 @@ export default function StudentsClient() {
       <StudentDetailsDialog
         isOpen={detailsDialogOpen}
         setIsOpen={setDetailsDialogOpen}
+        student={selectedStudent}
+      />
+      <StudentAttendanceDialog
+        isOpen={attendanceDialogOpen}
+        setIsOpen={setAttendanceDialogOpen}
         student={selectedStudent}
       />
     </div>
