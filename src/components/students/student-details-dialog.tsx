@@ -28,17 +28,23 @@ import type { Student, BodyMeasurements } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Ruler, Weight, Scale, VenetianMask } from 'lucide-react';
 
+const positiveNumberSchema = z.coerce
+  .number()
+  .positive({ message: 'O valor deve ser positivo.' })
+  .optional()
+  .or(z.literal(''));
+
 const detailsSchema = z.object({
-  height: z.coerce.number().positive({ message: 'Altura deve ser um número positivo.' }).optional().or(z.literal('')),
-  weight: z.coerce.number().positive({ message: 'Peso deve ser um número positivo.' }).optional().or(z.literal('')),
+  height: positiveNumberSchema,
+  weight: positiveNumberSchema,
   bodyMeasurements: z.object({
-    chest: z.coerce.number().positive().optional().or(z.literal('')),
-    waist: z.coerce.number().positive().optional().or(z.literal('')),
-    hips: z.coerce.number().positive().optional().or(z.literal('')),
-    leftArm: z.coerce.number().positive().optional().or(z.literal('')),
-    rightArm: z.coerce.number().positive().optional().or(z.literal('')),
-    leftThigh: z.coerce.number().positive().optional().or(z.literal('')),
-    rightThigh: z.coerce.number().positive().optional().or(z.literal('')),
+    chest: positiveNumberSchema,
+    waist: positiveNumberSchema,
+    hips: positiveNumberSchema,
+    leftArm: positiveNumberSchema,
+    rightArm: positiveNumberSchema,
+    leftThigh: positiveNumberSchema,
+    rightThigh: positiveNumberSchema,
   }).optional(),
 });
 
@@ -51,7 +57,7 @@ interface StudentDetailsDialogProps {
 }
 
 const calculateIMC = (height?: number, weight?: number) => {
-  if (!height || !weight) return 'N/A';
+  if (!height || !weight || height <= 0 || weight <= 0) return 'N/A';
   const heightInMeters = height / 100;
   const imc = weight / (heightInMeters * heightInMeters);
   return imc.toFixed(2);
