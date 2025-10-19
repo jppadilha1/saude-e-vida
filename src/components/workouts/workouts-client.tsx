@@ -9,15 +9,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { workoutData } from '@/lib/workout-data';
+import { useWorkout } from '@/contexts/workout-context';
 
-const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
+const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 const timeSlots = Array.from({ length: 15 }, (_, i) => {
   const hour = i + 7;
   return `${hour}:00-${hour + 1}:00`;
 });
 
 export default function WorkoutsClient() {
+  const { workoutData } = useWorkout();
+
   return (
     <Card>
       <CardHeader>
@@ -39,10 +41,10 @@ export default function WorkoutsClient() {
                 <TableRow key={time}>
                   <TableCell className="text-center font-medium text-muted-foreground border-r">{time}</TableCell>
                   {daysOfWeek.map((day) => {
-                    const workout = (workoutData as any)[day]?.[time] || '';
+                    const students = workoutData[day]?.[time] || [];
                     return (
                       <TableCell key={`${day}-${time}`} className="h-20 text-center border-r last:border-r-0">
-                        {workout}
+                        {students.join(', ')}
                       </TableCell>
                     );
                   })}

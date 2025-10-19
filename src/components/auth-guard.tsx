@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { StudentProvider } from '@/contexts/student-context';
+import { WorkoutProvider } from '@/contexts/workout-context';
 
-// O AuthGuard agora envolve o StudentProvider
+// O AuthGuard agora envolve o StudentProvider e o WorkoutProvider
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const router = useRouter();
@@ -26,6 +27,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Só renderiza o StudentProvider e os filhos se a autenticação for bem-sucedida
-  return <StudentProvider>{children}</StudentProvider>;
+  // Só renderiza os providers e os filhos se a autenticação for bem-sucedida
+  return (
+    <StudentProvider>
+      <WorkoutProvider>{children}</WorkoutProvider>
+    </StudentProvider>
+  );
 }
