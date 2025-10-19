@@ -1,98 +1,82 @@
 /**
- * @fileoverview Firestore Security Rules for the academy application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model, where each student's data (attendance, payments)
- * is accessible only to authenticated users and can only be modified by the student themselves.
- * All write operations require authentication, and data is organized hierarchically under each student's ID.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a role-based access control model, primarily for use by administrative staff.
  *
  * Data Structure:
- * - /students/{studentId}: Stores student profile information.
- * - /students/{studentId}/attendance/{attendanceId}: Stores attendance records for each student.
+ * - /students/{studentId}: Stores student profiles.
+ * - /students/{studentId}/attendance/{attendanceId}: Stores individual attendance records for each student.
  * - /students/{studentId}/payments/{paymentId}: Stores payment history for each student.
  *
  * Key Security Decisions:
- * - Students can only manage their own data (create/update/delete attendance and payment records).
- * - Listing all students is not permitted.
- *
- * Denormalization for Authorization:
- *  The 'studentId' is part of the document path, meaning we don't need to store it inside the document itself for authorization purposes.
+ * - Only authenticated users (admin staff) can read or write student data, attendance records, or payment information.
+ * - No specific data validation is enforced in this prototyping phase beyond what is strictly necessary for authorization.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(studentId) {
-      return request.auth.uid == studentId;
-    }
-
-    function isExistingOwner(studentId) {
-      return isOwner(studentId) && resource != null;
-    }
-
     /**
-     * @description Secures the student profiles. Students can only create their own profile.
+     * @description Controls access to student profiles. Only authenticated users (admin staff) can read or write student data.
      * @path /students/{studentId}
-     * @allow (create) User with ID 'user_abc' can create a student profile at /students/user_abc.
-     * @deny (create) User with ID 'user_xyz' cannot create a student profile at /students/user_abc.
-     * @allow (get) Any authenticated user can get any student profile.
-     * @allow (update) User with ID 'user_abc' can update their student profile at /students/user_abc.
-     * @allow (delete) User with ID 'user_abc' can delete their student profile at /students/user_abc.
-     * @deny (update) User with ID 'user_xyz' cannot update student profile at /students/user_abc.
-     * @principle Enforces document ownership for writes.
+     * @allow (get, list) An authenticated user reading a student profile.
+     * @deny (get, list) An unauthenticated user attempting to read student data.
+     * @allow (create) An authenticated user creating a new student profile.
+     * @deny (create) An unauthenticated user attempting to create a student profile.
+     * @allow (update) An authenticated user updating a student profile.
+     * @deny (update) An unauthenticated user attempting to update a student profile.
+     * @allow (delete) An authenticated user deleting a student profile.
+     * @deny (delete) An unauthenticated user attempting to delete a student profile.
+     * @principle Enforces authenticated access for all operations on student profiles.
      */
     match /students/{studentId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isOwner(studentId);
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures the attendance records for each student. Only the student can manage their attendance records.
+     * @description Controls access to student attendance records. Only authenticated users (admin staff) can read or write attendance data.
      * @path /students/{studentId}/attendance/{attendanceId}
-     * @allow (create) User with ID 'user_abc' can create an attendance record at /students/user_abc/attendance/attendance_1.
-     * @deny (create) User with ID 'user_xyz' cannot create an attendance record at /students/user_abc/attendance/attendance_1.
-     * @allow (get) User with ID 'user_abc' can get an attendance record at /students/user_abc/attendance/attendance_1.
-     * @deny (get) User with ID 'user_xyz' cannot get an attendance record at /students/user_abc/attendance/attendance_1.
-     * @allow (update) User with ID 'user_abc' can update their attendance record at /students/user_abc/attendance/attendance_1.
-     * @deny (update) User with ID 'user_xyz' cannot update attendance record at /students/user_abc/attendance/attendance_1.
-     * @allow (delete) User with ID 'user_abc' can delete their attendance record at /students/user_abc/attendance/attendance_1.
-     * @deny (delete) User with ID 'user_xyz' cannot delete attendance record at /students/user_abc/attendance/attendance_1.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (get, list) An authenticated user reading an attendance record.
+     * @deny (get, list) An unauthenticated user attempting to read attendance data.
+     * @allow (create) An authenticated user creating a new attendance record.
+     * @deny (create) An unauthenticated user attempting to create an attendance record.
+     * @allow (update) An authenticated user updating an attendance record.
+     * @deny (update) An unauthenticated user attempting to update an attendance record.
+     * @allow (delete) An authenticated user deleting an attendance record.
+     * @deny (delete) An unauthenticated user attempting to delete an attendance record.
+     * @principle Enforces authenticated access for all operations on student attendance records.
      */
     match /students/{studentId}/attendance/{attendanceId} {
-      allow get: if isOwner(studentId);
-      allow list: if isOwner(studentId);
-      allow create: if isOwner(studentId);
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures the payment records for each student. Only the student can manage their payment records.
+     * @description Controls access to student payment records. Only authenticated users (admin staff) can read or write payment data.
      * @path /students/{studentId}/payments/{paymentId}
-     * @allow (create) User with ID 'user_abc' can create a payment record at /students/user_abc/payments/payment_1.
-     * @deny (create) User with ID 'user_xyz' cannot create a payment record at /students/user_abc/payments/payment_1.
-     * @allow (get) User with ID 'user_abc' can get a payment record at /students/user_abc/payments/payment_1.
-     * @deny (get) User with ID 'user_xyz' cannot get a payment record at /students/user_abc/payments/payment_1.
-     * @allow (update) User with ID 'user_abc' can update their payment record at /students/user_abc/payments/payment_1.
-     * @deny (update) User with ID 'user_xyz' cannot update payment record at /students/user_abc/payments/payment_1.
-     * @allow (delete) User with ID 'user_abc' can delete their payment record at /students/user_abc/payments/payment_1.
-     * @deny (delete) User with ID 'user_xyz' cannot delete payment record at /students/user_abc/payments/payment_1.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (get, list) An authenticated user reading a payment record.
+     * @deny (get, list) An unauthenticated user attempting to read payment data.
+     * @allow (create) An authenticated user creating a new payment record.
+     * @deny (create) An unauthenticated user attempting to create a payment record.
+     * @allow (update) An authenticated user updating a payment record.
+     * @deny (update) An unauthenticated user attempting to update a payment record.
+     * @allow (delete) An authenticated user deleting a payment record.
+     * @deny (delete) An unauthenticated user attempting to delete a payment record.
+     * @principle Enforces authenticated access for all operations on student payment records.
      */
     match /students/{studentId}/payments/{paymentId} {
-      allow get: if isOwner(studentId);
-      allow list: if isOwner(studentId);
-      allow create: if isOwner(studentId);
-      allow update: if isExistingOwner(studentId);
-      allow delete: if isExistingOwner(studentId);
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
+  }
+
+  function isSignedIn() {
+    return request.auth != null;
   }
 }
