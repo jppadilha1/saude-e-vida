@@ -111,7 +111,7 @@
         "id",
         "studentId",
         "date",
-        "present"
+        "isPresent"
       ]
     },
     "Payment": {

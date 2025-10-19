@@ -53,7 +53,6 @@ interface StudentContextType {
   ) => void;
   deleteStudent: (studentId: string) => void;
   markAttendance: (studentId: string, present: boolean) => void;
-  updateSpecificAttendance: (studentId: string, attendanceId: string, present: boolean) => void;
   resetAllPayments: () => void;
   getStudentAttendance: (studentId: string) => Promise<Attendance[]>;
   getStudentPayments: (studentId: string) => Promise<Payment[]>;
@@ -216,26 +215,6 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     });
   };
 
-   const updateSpecificAttendance = (studentId: string, attendanceId: string, present: boolean) => {
-    if (!firestore || !user) return;
-    
-    const attendanceDocRef = doc(firestore, 'students', studentId, 'attendance', attendanceId);
-    updateDocumentNonBlocking(attendanceDocRef, { present });
-
-    // Optimistically update UI
-    setAttendanceData(prev => {
-      const studentAttendance = prev[studentId] ? [...prev[studentId]] : [];
-      const recordIndex = studentAttendance.findIndex(a => a.id === attendanceId);
-
-      if (recordIndex > -1) {
-        studentAttendance[recordIndex].present = present;
-      }
-      
-      return { ...prev, [studentId]: studentAttendance };
-    });
-  };
-
-
   const resetAllPayments = async () => {
     if (!firestore || !user) return;
     const batch = writeBatch(firestore);
@@ -308,7 +287,6 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     updateStudent,
     deleteStudent,
     markAttendance,
-    updateSpecificAttendance,
     resetAllPayments,
     getStudentAttendance,
     getStudentPayments,
