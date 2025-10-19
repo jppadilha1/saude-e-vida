@@ -7,6 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -51,48 +57,49 @@ export function StudentWorkoutDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Agenda de Treino: {student.name}</DialogTitle>
           <DialogDescription>
-            Marque ou desmarque os horários de treino para este aluno.
-            Um horário cheio (2 alunos) não pode ser selecionado.
+            Marque ou desmarque os horários de treino. Um horário com 2 alunos não pode ser selecionado.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-96 pr-4">
-            <div className="space-y-6 py-4">
-            {daysOfWeek.map((day) => (
-                <div key={day}>
-                <h4 className="font-semibold mb-3">{day}</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {timeSlots.map((time) => {
-                    const studentsInSlot = workoutData[day]?.[time] || [];
-                    const isStudentInSlot = studentsInSlot.includes(student.name);
-                    const isSlotFull = studentsInSlot.length >= 2;
-                    const isDisabled = isSlotFull && !isStudentInSlot;
+        <ScrollArea className="h-[60vh] pr-4">
+            <Accordion type="single" collapsible className="w-full">
+                {daysOfWeek.map((day) => (
+                    <AccordionItem value={day} key={day}>
+                        <AccordionTrigger className="text-lg font-semibold">{day}</AccordionTrigger>
+                        <AccordionContent>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4 pt-2">
+                                {timeSlots.map((time) => {
+                                const studentsInSlot = workoutData[day]?.[time] || [];
+                                const isStudentInSlot = studentsInSlot.includes(student.name);
+                                const isSlotFull = studentsInSlot.length >= 2;
+                                const isDisabled = isSlotFull && !isStudentInSlot;
 
-                    return (
-                        <div key={`${day}-${time}`} className="flex items-center space-x-2">
-                            <Checkbox
-                                id={`${day}-${time}`}
-                                checked={isStudentInSlot}
-                                onCheckedChange={(checked) => handleCheckboxChange(day, time, !!checked)}
-                                disabled={isDisabled}
-                            />
-                            <Label 
-                                htmlFor={`${day}-${time}`}
-                                className={`flex-grow ${isDisabled ? 'text-muted-foreground cursor-not-allowed' : 'cursor-pointer'}`}
-                            >
-                                {time}
-                                <Badge variant="secondary" className="ml-2">{studentsInSlot.length}/2</Badge>
-                            </Label>
-                        </div>
-                    );
-                    })}
-                </div>
-                </div>
-            ))}
-            </div>
+                                return (
+                                    <div key={`${day}-${time}`} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`${day}-${time}-${student.id}`}
+                                            checked={isStudentInSlot}
+                                            onCheckedChange={(checked) => handleCheckboxChange(day, time, !!checked)}
+                                            disabled={isDisabled}
+                                        />
+                                        <Label 
+                                            htmlFor={`${day}-${time}-${student.id}`}
+                                            className={`flex-grow ${isDisabled ? 'text-muted-foreground cursor-not-allowed' : 'cursor-pointer'}`}
+                                        >
+                                            {time}
+                                            <Badge variant="secondary" className="ml-2">{studentsInSlot.length}/2</Badge>
+                                        </Label>
+                                    </div>
+                                );
+                                })}
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
         </ScrollArea>
       </DialogContent>
     </Dialog>
