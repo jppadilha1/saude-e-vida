@@ -17,8 +17,29 @@ interface WorkoutContextType {
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
+const WORKOUT_STORAGE_KEY = 'saude-vida-workout-data';
+
 export function WorkoutProvider({ children }: { children: ReactNode }) {
-  const [workoutData, setWorkoutData] = useState<WorkoutData>(initialWorkoutData);
+  const [workoutData, setWorkoutData] = useState<WorkoutData>(() => {
+    try {
+      const storedData = localStorage.getItem(WORKOUT_STORAGE_KEY);
+      if (storedData) {
+        return JSON.parse(storedData);
+      }
+    } catch (error) {
+      console.error("Failed to parse workout data from localStorage", error);
+    }
+    return initialWorkoutData;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WORKOUT_STORAGE_KEY, JSON.stringify(workoutData));
+    } catch (error) {
+      console.error("Failed to save workout data to localStorage", error);
+    }
+  }, [workoutData]);
+
 
   const syncWorkoutData = (studentNames: Set<string>) => {
     setWorkoutData(prevData => {
