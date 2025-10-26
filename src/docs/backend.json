@@ -10,6 +10,10 @@
           "type": "string",
           "description": "Unique identifier for the Student entity."
         },
+        "instructorId": {
+          "type": "string",
+          "description": "Reference to the Instructor. (Relationship: Instructor 1:N Student)"
+        },
         "name": {
           "type": "string",
           "description": "The name of the student."
@@ -80,7 +84,8 @@
         "name",
         "enrollmentDate",
         "status",
-        "paymentStatus"
+        "paymentStatus",
+        "instructorId"
       ]
     },
     "Attendance": {
@@ -139,6 +144,26 @@
         "studentId",
         "paymentDate"
       ]
+    },
+    "Instructor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Instructor",
+      "type": "object",
+      "description": "Represents an instructor at the academy.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Instructor entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the instructor."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
     }
   },
   "auth": {
@@ -165,6 +190,12 @@
         "$ref": "#/entities/Payment"
       },
       "description": "Stores payment history for each student."
+    },
+    "/instructors/{instructorId}": {
+      "schema": {
+        "$ref": "#/entities/Instructor"
+      },
+      "description": "Stores instructor data."
     }
   }
 }
