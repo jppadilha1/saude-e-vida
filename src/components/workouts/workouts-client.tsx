@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useWorkout } from '@/contexts/workout-context';
+import { useStudent } from '@/contexts/student-context';
+import { useMemo } from 'react';
 
 const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 const timeSlots = Array.from({ length: 15 }, (_, i) => {
@@ -19,6 +21,11 @@ const timeSlots = Array.from({ length: 15 }, (_, i) => {
 
 export default function WorkoutsClient() {
   const { workoutData } = useWorkout();
+  const { students } = useStudent();
+
+  const instructorStudentNames = useMemo(() => {
+    return new Set(students.map(s => s.name));
+  }, [students]);
 
   return (
     <Card>
@@ -41,10 +48,12 @@ export default function WorkoutsClient() {
                 <TableRow key={time}>
                   <TableCell className="text-center font-medium text-muted-foreground border-r">{time}</TableCell>
                   {daysOfWeek.map((day) => {
-                    const students = workoutData[day]?.[time] || [];
+                    const allStudentsInSlot = workoutData[day]?.[time] || [];
+                    const visibleStudents = allStudentsInSlot.filter(name => instructorStudentNames.has(name));
+                    
                     return (
                       <TableCell key={`${day}-${time}`} className="h-20 text-center border-r last:border-r-0">
-                        {students.join(', ')}
+                        {visibleStudents.join(', ')}
                       </TableCell>
                     );
                   })}

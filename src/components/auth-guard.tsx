@@ -27,7 +27,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // O StudentProvider deve envolver o WorkoutProvider porque o WorkoutProvider depende do StudentProvider.
+  // O StudentProvider deve envolver o WorkoutProvider porque a agenda de treinos (workout)
+  // precisa saber quais alunos pertencem ao instrutor para filtrá-los.
   return (
     <StudentProvider>
       <WorkoutProvider>{children}</WorkoutProvider>
