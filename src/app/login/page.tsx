@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -29,6 +30,7 @@ import { instructors } from '@/lib/instructors-data';
 
 export default function LoginPage() {
   const [selectedInstructor, setSelectedInstructor] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
@@ -44,6 +46,15 @@ export default function LoginPage() {
       });
       return;
     }
+    if (password !== 'senha segura') {
+      toast({
+        title: 'Senha Incorreta',
+        description: 'A senha informada está incorreta. Tente novamente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     const success = await login(selectedInstructor);
     if (success) {
@@ -111,6 +122,16 @@ export default function LoginPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="********"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
           </CardContent>
           <CardFooter>
