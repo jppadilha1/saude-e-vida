@@ -20,6 +20,7 @@ export type BodyMeasurements = {
 
 export type Student = {
   id: string;
+  instructorId: string;
   name: string;
   enrollmentDate: string;
   status: StudentStatus;
@@ -34,4 +35,9 @@ export type Payment = {
   id: string;
   studentId: string;
   paymentDate: string;
+};
+
+export type Instructor = {
+  id: string;
+  name: string;
 };

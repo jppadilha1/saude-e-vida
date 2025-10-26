@@ -44,6 +44,7 @@ interface StudentContextType {
     name: string;
     status: StudentStatus;
     paymentStatus: PaymentStatus;
+    instructorId: string;
   }) => void;
   updateStudent: (
     studentId: string,
@@ -133,6 +134,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     name: string;
     status: StudentStatus;
     paymentStatus: PaymentStatus;
+    instructorId: string;
   }) => {
     if (!firestore || !user) return;
     const studentsCollection = collection(firestore, 'students');

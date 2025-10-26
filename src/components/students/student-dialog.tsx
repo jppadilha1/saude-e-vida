@@ -38,14 +38,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useStudent } from '@/contexts/student-context';
-import type { Student, StudentStatus, PaymentStatus, Payment } from '@/types';
+import type { Student, Payment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, History, Loader2 } from 'lucide-react';
+import { Calendar, History, Loader2, User } from 'lucide-react';
+import { instructors } from '@/lib/instructors-data';
 
 const studentSchema = z.object({
   name: z.string().min(2, { message: 'O nome deve ter pelo menos 2 caracteres.' }),
   status: z.enum(['Ativo', 'Inativo']),
   paymentStatus: z.enum(['Pago', 'Pendente']),
+  instructorId: z.string({ required_error: 'Selecione um instrutor.' }),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -74,6 +76,7 @@ export function StudentDialog({
       name: '',
       status: 'Ativo',
       paymentStatus: 'Pago',
+      instructorId: '',
     },
   });
 
@@ -84,6 +87,7 @@ export function StudentDialog({
           name: student.name,
           status: student.status,
           paymentStatus: student.paymentStatus,
+          instructorId: student.instructorId,
         });
         // Fetch payment history
         setIsLoadingPayments(true);
@@ -95,6 +99,7 @@ export function StudentDialog({
           name: '',
           status: 'Ativo',
           paymentStatus: 'Pago',
+          instructorId: '',
         });
         setPayments([]);
       }
@@ -138,6 +143,32 @@ export function StudentDialog({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="instructorId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Instrutor</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o instrutor" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {instructors.map(instr => (
+                        <SelectItem key={instr.id} value={instr.id}>
+                          {instr.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="status"
