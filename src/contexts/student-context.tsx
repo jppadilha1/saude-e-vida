@@ -34,8 +34,6 @@ import {
 } from '@/firebase/non-blocking-updates';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { useWorkout } from './workout-context';
-
 
 type StudentWithAttendance = Student & { attendance: Attendance[] };
 
@@ -52,7 +50,7 @@ interface StudentContextType {
     updatedData: Partial<Omit<Student, 'id'>>,
     originalStudent: Student
   ) => void;
-  deleteStudent: (student: Student) => void;
+  deleteStudent: (studentId: string) => void;
   markAttendance: (studentId: string, present: boolean) => void;
   resetAllPayments: () => void;
   getStudentAttendance: (studentId: string) => Promise<Attendance[]>;
@@ -66,7 +64,6 @@ const StudentContext = createContext<StudentContextType | undefined>(
 export function StudentProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-  const { removeStudentFromSchedule } = useWorkout();
 
   const studentsRef = useMemoFirebase(
     () => (firestore && user ? collection(firestore, 'students') : null),
@@ -163,14 +160,9 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const deleteStudent = (student: Student) => {
+  const deleteStudent = (studentId: string) => {
     if (!firestore || !user) return;
-    
-    // Remove student from workout schedule first
-    removeStudentFromSchedule(student.name);
-
-    // Then delete student document from Firestore
-    const studentDocRef = doc(firestore, 'students', student.id);
+    const studentDocRef = doc(firestore, 'students', studentId);
     deleteDocumentNonBlocking(studentDocRef);
   };
 

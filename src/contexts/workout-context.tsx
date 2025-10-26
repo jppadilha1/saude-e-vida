@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { initialWorkoutData } from '@/lib/workout-data';
-import { useStudent } from './student-context'; // Import useStudent
 
 // Definindo os tipos para os dados de treino
 type WorkoutSlot = string[]; // Array de nomes de alunos
@@ -13,20 +12,15 @@ interface WorkoutContextType {
   workoutData: WorkoutData;
   toggleStudentWorkout: (studentName: string, day: string, time: string, add: boolean) => boolean;
   removeStudentFromSchedule: (studentName: string) => void;
+  syncWorkoutData: (studentNames: Set<string>) => void;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [workoutData, setWorkoutData] = useState<WorkoutData>(initialWorkoutData);
-  const { students, loading: studentsLoading } = useStudent();
 
-  // Efeito para sincronizar a agenda de treinos com a lista de alunos
-  useEffect(() => {
-    if (studentsLoading) return;
-
-    const studentNames = new Set(students.map(s => s.name));
-
+  const syncWorkoutData = (studentNames: Set<string>) => {
     setWorkoutData(prevData => {
       const newData = JSON.parse(JSON.stringify(prevData)); // Deep copy
       let hasChanged = false;
@@ -44,9 +38,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       
       return hasChanged ? newData : prevData;
     });
-
-  }, [students, studentsLoading]);
-
+  };
 
   const toggleStudentWorkout = (studentName: string, day: string, time: string, add: boolean): boolean => {
     
@@ -100,7 +92,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
 
   return (
-    <WorkoutContext.Provider value={{ workoutData, toggleStudentWorkout, removeStudentFromSchedule }}>
+    <WorkoutContext.Provider value={{ workoutData, toggleStudentWorkout, removeStudentFromSchedule, syncWorkoutData }}>
       {children}
     </WorkoutContext.Provider>
   );

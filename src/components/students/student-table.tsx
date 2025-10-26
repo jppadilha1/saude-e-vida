@@ -31,7 +31,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { MoreHorizontal } from 'lucide-react';
-import { useStudent } from '@/contexts/student-context';
 
 type StudentWithAttendance = Student & { attendance: Attendance[] };
 
@@ -41,11 +40,11 @@ type StudentTableProps = {
   onShowDetails: (student: Student) => void;
   onShowAttendance: (student: StudentWithAttendance) => void;
   onShowWorkouts: (student: Student) => void;
+  onDelete: (student: Student) => void;
 };
 
-export default function StudentTable({ students, onEdit, onShowDetails, onShowAttendance, onShowWorkouts }: StudentTableProps) {
-  const { deleteStudent } = useStudent();
-
+export default function StudentTable({ students, onEdit, onShowDetails, onShowAttendance, onShowWorkouts, onDelete }: StudentTableProps) {
+  
   return (
     <div className="rounded-lg border">
       <Table>
@@ -131,7 +130,7 @@ export default function StudentTable({ students, onEdit, onShowDetails, onShowAt
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                           className="bg-red-600 hover:bg-red-700"
-                          onClick={() => deleteStudent(student)}
+                          onClick={() => onDelete(student)}
                         >
                           Excluir
                         </AlertDialogAction>

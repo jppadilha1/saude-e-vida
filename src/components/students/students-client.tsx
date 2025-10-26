@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStudent } from '@/contexts/student-context';
+import { useWorkout } from '@/contexts/workout-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -45,7 +46,8 @@ type AttendanceFilter = 'todos' | 'presente' | 'ausente';
 type StudentWithAttendance = Student & { attendance: Attendance[] };
 
 export default function StudentsClient() {
-  const { students, loading, resetAllPayments } = useStudent();
+  const { students, loading, resetAllPayments, deleteStudent } = useStudent();
+  const { syncWorkoutData, removeStudentFromSchedule } = useWorkout();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
@@ -57,6 +59,13 @@ export default function StudentsClient() {
   const [statusFilter, setStatusFilter] = useState<StudentStatus | 'todos'>('todos');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'todos'>('todos');
   const [attendanceFilter, setAttendanceFilter] = useState<AttendanceFilter>('todos');
+
+  useEffect(() => {
+    if (!loading) {
+      const studentNames = new Set(students.map(s => s.name));
+      syncWorkoutData(studentNames);
+    }
+  }, [students, loading, syncWorkoutData]);
 
   const handleAddStudent = () => {
     setSelectedStudent(null);
@@ -82,6 +91,11 @@ export default function StudentsClient() {
     setSelectedStudent(student as StudentWithAttendance);
     setWorkoutDialogOpen(true);
   };
+
+  const handleDeleteStudent = (student: Student) => {
+    removeStudentFromSchedule(student.name);
+    deleteStudent(student.id);
+  }
 
   const handleResetPayments = () => {
     resetAllPayments();
@@ -228,6 +242,7 @@ export default function StudentsClient() {
         onShowDetails={handleShowDetails}
         onShowAttendance={handleShowAttendance}
         onShowWorkouts={handleShowWorkouts}
+        onDelete={handleDeleteStudent}
       />
       <StudentDialog
         isOpen={dialogOpen}
