@@ -124,14 +124,14 @@ export default function StudentTable({ students, onEdit, onShowDetails, onShowAt
                         <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                         <AlertDialogDescription>
                           Essa ação não pode ser desfeita. Isso irá excluir permanentemente o aluno
-                          "{student.name}".
+                          "{student.name}" e seus agendamentos de treino.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                           className="bg-red-600 hover:bg-red-700"
-                          onClick={() => deleteStudent(student.id)}
+                          onClick={() => deleteStudent(student)}
                         >
                           Excluir
                         </AlertDialogAction>

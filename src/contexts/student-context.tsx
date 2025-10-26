@@ -34,6 +34,7 @@ import {
 } from '@/firebase/non-blocking-updates';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useWorkout } from './workout-context';
 
 
 type StudentWithAttendance = Student & { attendance: Attendance[] };
@@ -51,7 +52,7 @@ interface StudentContextType {
     updatedData: Partial<Omit<Student, 'id'>>,
     originalStudent: Student
   ) => void;
-  deleteStudent: (studentId: string) => void;
+  deleteStudent: (student: Student) => void;
   markAttendance: (studentId: string, present: boolean) => void;
   resetAllPayments: () => void;
   getStudentAttendance: (studentId: string) => Promise<Attendance[]>;
@@ -64,9 +65,9 @@ const StudentContext = createContext<StudentContextType | undefined>(
 
 export function StudentProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser(); // Get user and auth loading state
+  const { user, isUserLoading } = useUser();
+  const { removeStudentFromSchedule } = useWorkout();
 
-  // Only create the query if the user is authenticated and firestore is available
   const studentsRef = useMemoFirebase(
     () => (firestore && user ? collection(firestore, 'students') : null),
     [firestore, user]
@@ -79,12 +80,11 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   const [attendanceLoading, setAttendanceLoading] = useState(true);
 
   useEffect(() => {
-    // Wait until we have a user and student data is loaded.
     if (isUserLoading || !user || studentsLoading || !firestore) return;
 
     if (!studentsData || studentsData.length === 0) {
-      setAttendanceLoading(false); // No students, so no attendance to fetch.
-      setAttendanceData({}); // Ensure attendance data is cleared
+      setAttendanceLoading(false);
+      setAttendanceData({});
       return;
     }
 
@@ -130,7 +130,6 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     }));
   }, [studentsData, attendanceData]);
 
-  // Overall loading state depends on user authentication and data fetching.
   const loading = isUserLoading || (!!user && (studentsLoading || attendanceLoading));
 
   const addStudent = (studentData: {
@@ -155,7 +154,6 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     const studentDocRef = doc(firestore, 'students', studentId);
     updateDocumentNonBlocking(studentDocRef, updatedData);
 
-    // If payment status changed to 'Pago', log the payment.
     if (updatedData.paymentStatus === 'Pago' && originalStudent.paymentStatus !== 'Pago') {
       const paymentsCollection = collection(firestore, 'students', studentId, 'payments');
       addDocumentNonBlocking(paymentsCollection, {
@@ -165,9 +163,14 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const deleteStudent = (studentId: string) => {
+  const deleteStudent = (student: Student) => {
     if (!firestore || !user) return;
-    const studentDocRef = doc(firestore, 'students', studentId);
+    
+    // Remove student from workout schedule first
+    removeStudentFromSchedule(student.name);
+
+    // Then delete student document from Firestore
+    const studentDocRef = doc(firestore, 'students', student.id);
     deleteDocumentNonBlocking(studentDocRef);
   };
 
@@ -184,7 +187,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     getDocs(q).then(querySnapshot => {
       let docToUpdate;
       if (querySnapshot.empty) {
-        docToUpdate = doc(attendanceRef); // Create a new doc reference
+        docToUpdate = doc(attendanceRef);
         const data = { date: formatISO(new Date()), present, studentId: studentId };
         setDocumentNonBlocking(docToUpdate, data, {});
       } else {
@@ -200,7 +203,6 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         errorEmitter.emit('permission-error', permissionError);
     });
 
-    // Optimistically update UI
     setAttendanceData(prev => {
         const studentAttendance = prev[studentId] ? [...prev[studentId]] : [];
         const todayAttendanceIndex = studentAttendance.findIndex(a => isToday(new Date(a.date)));

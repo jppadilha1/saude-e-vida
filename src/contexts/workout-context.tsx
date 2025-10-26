@@ -11,6 +11,7 @@ type WorkoutData = Record<string, WorkoutDay>; // Chave é o dia da semana
 interface WorkoutContextType {
   workoutData: WorkoutData;
   toggleStudentWorkout: (studentName: string, day: string, time: string, add: boolean) => boolean;
+  removeStudentFromSchedule: (studentName: string) => void;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -53,9 +54,24 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     return true; // Retorna true se a operação foi bem-sucedida
   };
 
+  const removeStudentFromSchedule = (studentName: string) => {
+    setWorkoutData(prevData => {
+      const newData = JSON.parse(JSON.stringify(prevData)); // Deep copy
+      for (const day in newData) {
+        for (const time in newData[day]) {
+          const index = newData[day][time].indexOf(studentName);
+          if (index > -1) {
+            newData[day][time].splice(index, 1);
+          }
+        }
+      }
+      return newData;
+    });
+  };
+
 
   return (
-    <WorkoutContext.Provider value={{ workoutData, toggleStudentWorkout }}>
+    <WorkoutContext.Provider value={{ workoutData, toggleStudentWorkout, removeStudentFromSchedule }}>
       {children}
     </WorkoutContext.Provider>
   );
