@@ -34,6 +34,7 @@ import {
 } from '@/firebase/non-blocking-updates';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useAuth } from './auth-context';
 
 type StudentWithAttendance = Student & { attendance: Attendance[] };
 
@@ -44,7 +45,6 @@ interface StudentContextType {
     name: string;
     status: StudentStatus;
     paymentStatus: PaymentStatus;
-    instructorId: string;
   }) => void;
   updateStudent: (
     studentId: string,
@@ -65,13 +65,18 @@ const StudentContext = createContext<StudentContextType | undefined>(
 export function StudentProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { loggedInInstructorId, loading: authLoading } = useAuth();
 
-  const studentsRef = useMemoFirebase(
-    () => (firestore && user ? collection(firestore, 'students') : null),
-    [firestore, user]
-  );
-  const { data: studentsData, isLoading: studentsLoading } =
-    useCollection<Student>(studentsRef);
+  const studentsQuery = useMemoFirebase(() => {
+    if (!firestore || !user || !loggedInInstructorId) return null;
+    return query(
+      collection(firestore, 'students'),
+      where('instructorId', '==', loggedInInstructorId)
+    );
+  }, [firestore, user, loggedInInstructorId]);
+
+  const { data: studentsData, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
+  
   const [attendanceData, setAttendanceData] = useState<
     Record<string, Attendance[]>
   >({});
@@ -128,19 +133,19 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     }));
   }, [studentsData, attendanceData]);
 
-  const loading = isUserLoading || (!!user && (studentsLoading || attendanceLoading));
+  const loading = authLoading || isUserLoading || (!!user && (studentsLoading || attendanceLoading));
 
   const addStudent = (studentData: {
     name: string;
     status: StudentStatus;
     paymentStatus: PaymentStatus;
-    instructorId: string;
   }) => {
-    if (!firestore || !user) return;
+    if (!firestore || !user || !loggedInInstructorId) return;
     const studentsCollection = collection(firestore, 'students');
     addDocumentNonBlocking(studentsCollection, {
       ...studentData,
       enrollmentDate: formatISO(new Date()),
+      instructorId: loggedInInstructorId,
     });
   };
 
@@ -212,21 +217,17 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   };
 
   const resetAllPayments = async () => {
-    if (!firestore || !user) return;
+    if (!firestore || !user || !studentsQuery) return;
     const batch = writeBatch(firestore);
-    const activeStudentsQuery = query(
-      collection(firestore, 'students'),
-      where('status', '==', 'Ativo')
-    );
     try {
-        const querySnapshot = await getDocs(activeStudentsQuery);
+        const querySnapshot = await getDocs(studentsQuery);
         querySnapshot.forEach((doc) => {
           batch.update(doc.ref, { paymentStatus: 'Pendente' });
         });
         await batch.commit();
     } catch(e) {
         const permissionError = new FirestorePermissionError({
-            path: activeStudentsQuery.toString(),
+            path: studentsQuery.toString(),
             operation: 'write',
         });
         errorEmitter.emit('permission-error', permissionError);

@@ -42,12 +42,12 @@ import type { Student, Payment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, History, Loader2, User } from 'lucide-react';
 import { instructors } from '@/lib/instructors-data';
+import { useAuth } from '@/contexts/auth-context';
 
 const studentSchema = z.object({
   name: z.string().min(2, { message: 'O nome deve ter pelo menos 2 caracteres.' }),
   status: z.enum(['Ativo', 'Inativo']),
   paymentStatus: z.enum(['Pago', 'Pendente']),
-  instructorId: z.string({ required_error: 'Selecione um instrutor.' }),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -66,6 +66,8 @@ export function StudentDialog({
   const { addStudent, updateStudent, getStudentPayments } = useStudent();
   const { toast } = useToast();
   const isEditing = !!student;
+  const { loggedInInstructorId } = useAuth();
+  const currentInstructor = instructors.find(i => i.id === loggedInInstructorId);
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoadingPayments, setIsLoadingPayments] = useState(false);
@@ -76,7 +78,6 @@ export function StudentDialog({
       name: '',
       status: 'Ativo',
       paymentStatus: 'Pago',
-      instructorId: '',
     },
   });
 
@@ -87,7 +88,6 @@ export function StudentDialog({
           name: student.name,
           status: student.status,
           paymentStatus: student.paymentStatus,
-          instructorId: student.instructorId,
         });
         // Fetch payment history
         setIsLoadingPayments(true);
@@ -99,7 +99,6 @@ export function StudentDialog({
           name: '',
           status: 'Ativo',
           paymentStatus: 'Pago',
-          instructorId: '',
         });
         setPayments([]);
       }
@@ -144,30 +143,13 @@ export function StudentDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="instructorId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Instrutor</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o instrutor" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {instructors.map(instr => (
-                        <SelectItem key={instr.id} value={instr.id}>
-                          {instr.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormItem>
+              <FormLabel>Instrutor</FormLabel>
+              <Input
+                value={currentInstructor?.name || ''}
+                disabled
+              />
+            </FormItem>
 
             <FormField
               control={form.control}

@@ -13,15 +13,22 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Logo from '@/components/logo';
 import { Loader2 } from 'lucide-react';
+import { instructors } from '@/lib/instructors-data';
 
 export default function LoginPage() {
-  const [password, setPassword] = useState('');
+  const [selectedInstructor, setSelectedInstructor] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
@@ -29,14 +36,22 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedInstructor) {
+      toast({
+        title: 'Seleção Necessária',
+        description: 'Por favor, selecione um instrutor para continuar.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setIsLoading(true);
-    const success = await login(password); // login is now async
+    const success = await login(selectedInstructor);
     if (success) {
       router.push('/');
     } else {
       toast({
         title: 'Erro de Autenticação',
-        description: 'A palavra-passe está incorreta ou falha na conexão.',
+        description: 'Falha na autenticação. Tente novamente.',
         variant: 'destructive',
       });
       setIsLoading(false);
@@ -78,19 +93,24 @@ export default function LoginPage() {
               Acesso ao Painel
             </CardTitle>
             <CardDescription>
-              Insira a palavra-passe para continuar.
+              Selecione seu perfil de instrutor para continuar.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Palavra-passe</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <Label htmlFor="instructor">Instrutor</Label>
+              <Select onValueChange={setSelectedInstructor} value={selectedInstructor}>
+                <SelectTrigger id="instructor">
+                  <SelectValue placeholder="Selecione seu nome" />
+                </SelectTrigger>
+                <SelectContent>
+                  {instructors.map(instr => (
+                    <SelectItem key={instr.id} value={instr.id}>
+                      {instr.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
           <CardFooter>

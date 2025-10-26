@@ -26,6 +26,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
 import Logo from './logo';
+import { instructors } from '@/lib/instructors-data';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -35,7 +36,9 @@ type AppLayoutProps = {
 export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, loggedInInstructorId } = useAuth();
+
+  const instructor = instructors.find(i => i.id === loggedInInstructorId);
 
   const handleLogout = () => {
     logout();
@@ -116,9 +119,9 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Admin</p>
+                  <p className="text-sm font-medium leading-none">{instructor?.name || 'Admin'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    admin@saudevida.com
+                    {`${instructor?.name.toLowerCase() || 'admin'}@saudevida.com`}
                   </p>
                 </div>
               </DropdownMenuLabel>
