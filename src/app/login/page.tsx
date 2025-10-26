@@ -46,7 +46,7 @@ export default function LoginPage() {
       });
       return;
     }
-    if (password !== 'senha segura') {
+    if (password !== 'senhasegura123') {
       toast({
         title: 'Senha Incorreta',
         description: 'A senha informada está incorreta. Tente novamente.',
