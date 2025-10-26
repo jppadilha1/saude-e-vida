@@ -27,10 +27,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Só renderiza os providers e os filhos se a autenticação for bem-sucedida
+  // O StudentProvider deve envolver o WorkoutProvider porque o WorkoutProvider depende do StudentProvider.
   return (
-    <WorkoutProvider>
-      <StudentProvider>{children}</StudentProvider>
-    </WorkoutProvider>
+    <StudentProvider>
+      <WorkoutProvider>{children}</WorkoutProvider>
+    </StudentProvider>
   );
 }

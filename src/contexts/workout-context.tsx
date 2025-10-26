@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { initialWorkoutData } from '@/lib/workout-data';
+import { useStudent } from './student-context'; // Import useStudent
 
 // Definindo os tipos para os dados de treino
 type WorkoutSlot = string[]; // Array de nomes de alunos
@@ -18,6 +19,34 @@ const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [workoutData, setWorkoutData] = useState<WorkoutData>(initialWorkoutData);
+  const { students, loading: studentsLoading } = useStudent();
+
+  // Efeito para sincronizar a agenda de treinos com a lista de alunos
+  useEffect(() => {
+    if (studentsLoading) return;
+
+    const studentNames = new Set(students.map(s => s.name));
+
+    setWorkoutData(prevData => {
+      const newData = JSON.parse(JSON.stringify(prevData)); // Deep copy
+      let hasChanged = false;
+      
+      for (const day in newData) {
+        for (const time in newData[day]) {
+          const originalLength = newData[day][time].length;
+          // Filtra mantendo apenas os alunos que existem na lista de alunos
+          newData[day][time] = newData[day][time].filter((name: string) => studentNames.has(name));
+          if (newData[day][time].length !== originalLength) {
+            hasChanged = true;
+          }
+        }
+      }
+      
+      return hasChanged ? newData : prevData;
+    });
+
+  }, [students, studentsLoading]);
+
 
   const toggleStudentWorkout = (studentName: string, day: string, time: string, add: boolean): boolean => {
     
