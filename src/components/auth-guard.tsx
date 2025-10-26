@@ -29,8 +29,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // Só renderiza os providers e os filhos se a autenticação for bem-sucedida
   return (
-    <StudentProvider>
-      <WorkoutProvider>{children}</WorkoutProvider>
-    </StudentProvider>
+    <WorkoutProvider>
+      <StudentProvider>{children}</StudentProvider>
+    </WorkoutProvider>
   );
 }
