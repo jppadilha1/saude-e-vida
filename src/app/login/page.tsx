@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/auth-context';
@@ -36,6 +36,12 @@ export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInstructor) {
@@ -58,7 +64,7 @@ export default function LoginPage() {
     setIsLoading(true);
     const success = await login(selectedInstructor);
     if (success) {
-      router.push('/');
+      // The useEffect will handle the redirect
     } else {
       toast({
         title: 'Erro de Autenticação',
@@ -70,7 +76,6 @@ export default function LoginPage() {
   };
 
   if (isAuthenticated) {
-    router.push('/');
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
