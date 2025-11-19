@@ -1,82 +1,27 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset enforces a role-based access control model, primarily for use by administrative staff.
- *
- * Data Structure:
- * - /students/{studentId}: Stores student profiles.
- * - /students/{studentId}/attendance/{attendanceId}: Stores individual attendance records for each student.
- * - /students/{studentId}/payments/{paymentId}: Stores payment history for each student.
- *
- * Key Security Decisions:
- * - Only authenticated users (admin staff) can read or write student data, attendance records, or payment information.
- * - No specific data validation is enforced in this prototyping phase beyond what is strictly necessary for authorization.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Controls access to student profiles. Only authenticated users (admin staff) can read or write student data.
-     * @path /students/{studentId}
-     * @allow (get, list) An authenticated user reading a student profile.
-     * @deny (get, list) An unauthenticated user attempting to read student data.
-     * @allow (create) An authenticated user creating a new student profile.
-     * @deny (create) An unauthenticated user attempting to create a student profile.
-     * @allow (update) An authenticated user updating a student profile.
-     * @deny (update) An unauthenticated user attempting to update a student profile.
-     * @allow (delete) An authenticated user deleting a student profile.
-     * @deny (delete) An unauthenticated user attempting to delete a student profile.
-     * @principle Enforces authenticated access for all operations on student profiles.
-     */
     match /students/{studentId} {
-      allow list, get: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description Controls access to student attendance records. Only authenticated users (admin staff) can read or write attendance data.
-     * @path /students/{studentId}/attendance/{attendanceId}
-     * @allow (get, list) An authenticated user reading an attendance record.
-     * @deny (get, list) An unauthenticated user attempting to read attendance data.
-     * @allow (create) An authenticated user creating a new attendance record.
-     * @deny (create) An unauthenticated user attempting to create an attendance record.
-     * @allow (update) An authenticated user updating an attendance record.
-     * @deny (update) An unauthenticated user attempting to update an attendance record.
-     * @allow (delete) An authenticated user deleting an attendance record.
-     * @deny (delete) An unauthenticated user attempting to delete an attendance record.
-     * @principle Enforces authenticated access for all operations on student attendance records.
-     */
-    match /students/{studentId}/attendance/{attendanceId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+    match /students/{studentId}/{document=**} {
+      allow read, write: if isSignedIn();
     }
-
-    /**
-     * @description Controls access to student payment records. Only authenticated users (admin staff) can read or write payment data.
-     * @path /students/{studentId}/payments/{paymentId}
-     * @allow (get, list) An authenticated user reading a payment record.
-     * @deny (get, list) An unauthenticated user attempting to read payment data.
-     * @allow (create) An authenticated user creating a new payment record.
-     * @deny (create) An unauthenticated user attempting to create a payment record.
-     * @allow (update) An authenticated user updating a payment record.
-     * @deny (update) An unauthenticated user attempting to update a payment record.
-     * @allow (delete) An authenticated user deleting a payment record.
-     * @deny (delete) An unauthenticated user attempting to delete a payment record.
-     * @principle Enforces authenticated access for all operations on student payment records.
-     */
-    match /students/{studentId}/payments/{paymentId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+    
+    match /instructors/{instructorId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
   }
 
   function isSignedIn() {
     return request.auth != null;
+  }
+
+  function isAdmin() {
+    return request.auth.token.email == "Adm@gmail.com";
   }
 }
