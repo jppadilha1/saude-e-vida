@@ -5,7 +5,12 @@ import {
 } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
 
-admin.initializeApp();
+try {
+  admin.initializeApp();
+} catch (e) {
+  console.log("Admin SDK already initialized");
+}
+
 setGlobalOptions({ region: "us-central1" });
 
 // Função para criar uma conta de instrutor (Auth + Firestore)
@@ -41,7 +46,12 @@ export const createInstructorAccount = onCall(async (request) => {
 
     return { uid: userRecord.uid };
   } catch (error: any) {
-    throw new HttpsError("internal", error.message || "Erro desconhecido.");
+     console.error("Error creating instructor account:", error);
+    // Transforma erros comuns do Auth em erros HttpsError mais amigáveis
+    if (error.code === 'auth/email-already-exists') {
+      throw new HttpsError('already-exists', 'Este email já está em uso.');
+    }
+    throw new HttpsError("internal", error.message || "Erro desconhecido ao criar conta.");
   }
 });
 
@@ -60,11 +70,20 @@ export const deleteInstructorAccount = onCall(async (request) => {
   }
 
   try {
+    // Exclui o usuário do Firebase Authentication
     await admin.auth().deleteUser(uid);
-    // A exclusão do documento do Firestore será tratada no lado do cliente
-    // para garantir consistência e feedback ao usuário.
-    return { success: true };
+    
+    // A exclusão de documentos relacionados (instrutor, alunos) é tratada no lado do cliente
+    // para fornecer feedback imediato e garantir a consistência da interface.
+
+    return { success: true, message: `Usuário ${uid} excluído do Auth.` };
   } catch (error: any) {
-    throw new HttpsError("internal", error.message || "Erro desconhecido.");
+    console.error("Error deleting instructor account:", error);
+    if (error.code === 'auth/user-not-found') {
+      // Se o usuário não existe no Auth, ainda podemos querer continuar
+      // para limpar o Firestore. Retornamos sucesso, mas com um aviso.
+      return { success: true, message: `Usuário ${uid} não encontrado no Auth, pode já ter sido excluído.` };
+    }
+    throw new HttpsError("internal", error.message || "Erro desconhecido ao excluir conta.");
   }
 });

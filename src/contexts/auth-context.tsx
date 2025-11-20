@@ -53,12 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithEmailAndPassword(firebaseAuth, email, password);
       return true;
     } catch (error: any) {
-      // If user not found, create a new user
       if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         try {
           if (!password) throw new Error('Password is required for signup.');
-          await createUserWithEmailAndPassword(firebaseAuth, email, password);
-          return true;
+          // Apenas crie a conta se for o admin, para evitar criação de contas indesejadas.
+          // Para outros instrutores, o fluxo de criação deve ser através do painel do admin.
+          if (email === 'Adm@gmail.com') {
+            await createUserWithEmailAndPassword(firebaseAuth, email, password);
+             // Após criar, o onAuthStateChanged irá lidar com o estado.
+            return true;
+          }
+          // Para outros emails, apenas falha o login
+          return false;
         } catch (signUpError: any) {
           console.error('Authentication and signup failed:', signUpError);
           return false;
@@ -69,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
   };
+
 
   const logout = () => {
     if (firebaseAuth) {

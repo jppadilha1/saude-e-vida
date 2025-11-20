@@ -76,26 +76,20 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
       );
 
       try {
-        const result = await createInstructorAccount({
+        await createInstructorAccount({
           email: instructorData.email,
           password: instructorData.password,
           name: instructorData.name,
         });
 
-        const { uid } = (result.data as { uid: string }) || {};
-        if (!uid) {
-          throw new Error('Failed to get UID from function result.');
-        }
-
-        // The Cloud Function now handles creating the Firestore document.
-        // No need to call addDocumentNonBlocking here.
-
+        // A função de nuvem agora lida com a criação do usuário e do documento.
+        // O useCollection atualizará a lista automaticamente.
       } catch (error) {
         console.error('Error creating instructor:', error);
         throw error;
       }
     },
-    [firestore, toast]
+    [firestore]
   );
 
   const updateInstructor = useCallback(
@@ -117,22 +111,27 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
         'deleteInstructorAccount'
       );
 
-      // Call the cloud function to delete the user from Auth
-      await deleteInstructorAccount({ uid: instructorId });
+      try {
+        // Chama a função de nuvem para excluir o usuário do Auth
+        await deleteInstructorAccount({ uid: instructorId });
 
-      // Also delete the instructor document from Firestore
-      const instructorDocRef = doc(firestore, 'instructors', instructorId);
-      deleteDocumentNonBlocking(instructorDocRef);
+        // Exclui o documento do instrutor no Firestore
+        const instructorDocRef = doc(firestore, 'instructors', instructorId);
+        await deleteDocumentNonBlocking(instructorDocRef);
 
-      // Also delete students associated with this instructor
-      const studentsRef = collection(firestore, 'students');
-      const q = query(studentsRef, where('instructorId', '==', instructorId));
-      const studentDocs = await getDocs(q);
-      const batch = writeBatch(firestore);
-      studentDocs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-      await batch.commit();
+        // Exclui os alunos associados a este instrutor
+        const studentsRef = collection(firestore, 'students');
+        const q = query(studentsRef, where('instructorId', '==', instructorId));
+        const studentDocs = await getDocs(q);
+        const batch = writeBatch(firestore);
+        studentDocs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+      } catch (error) {
+        console.error("Error deleting instructor and their students:", error);
+        throw error;
+      }
     },
     [firestore]
   );
