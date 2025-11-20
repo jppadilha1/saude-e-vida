@@ -31,7 +31,8 @@ export default function LoginPage() {
   const firebaseAuth = useFirebaseAuth(); // Instance for login
 
   useEffect(() => {
-    // Redireciona somente após o carregamento da autenticação e se o usuário estiver autenticado.
+    // Este useEffect agora apenas redireciona usuários que já estão logados
+    // ao carregar a página de login.
     if (!authLoading && isAuthenticated) {
       if (isAdmin) {
         router.push('/admin/instructors');
@@ -39,7 +40,6 @@ export default function LoginPage() {
         router.push('/');
       }
     }
-    // A dependência `authLoading` garante que o `useEffect` espere o estado de auth ser resolvido.
   }, [isAuthenticated, isAdmin, authLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -58,10 +58,16 @@ export default function LoginPage() {
     try {
       const success = await login(email, password);
       
-      if (!success) {
-        throw new Error('Falha ao processar o login.');
+      if (success) {
+        // Lógica de redirecionamento imediato após o sucesso do login.
+        if (email === 'Adm@gmail.com') {
+          router.push('/admin/instructors');
+        } else {
+          router.push('/');
+        }
+      } else {
+        throw new Error('Falha no login.');
       }
-      // O useEffect cuidará do redirecionamento assim que o estado de auth for atualizado.
     } catch (error: any) {
        toast({
         title: 'Erro de Autenticação',
