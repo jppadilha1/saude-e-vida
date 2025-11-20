@@ -53,26 +53,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithEmailAndPassword(firebaseAuth, email, password);
       return true;
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+      // Se o usuário admin não existir, crie-o na primeira vez.
+      if (
+        (error.code === 'auth/user-not-found' ||
+          error.code === 'auth/invalid-credential') &&
+        email === 'Adm@gmail.com'
+      ) {
         try {
           if (!password) throw new Error('Password is required for signup.');
-          // Apenas crie a conta se for o admin, para evitar criação de contas indesejadas.
-          // Para outros instrutores, o fluxo de criação deve ser através do painel do admin.
-          if (email === 'Adm@gmail.com') {
-            await createUserWithEmailAndPassword(firebaseAuth, email, password);
-             // Após criar, o onAuthStateChanged irá lidar com o estado.
-            return true;
-          }
-          // Para outros emails, apenas falha o login
-          return false;
-        } catch (signUpError: any) {
-          console.error('Authentication and signup failed:', signUpError);
+          await createUserWithEmailAndPassword(firebaseAuth, email, password);
+          return true;
+        } catch (signUpError) {
+          // Se a criação também falhar, o login falha.
+          console.error('Admin account creation failed:', signUpError);
           return false;
         }
-      } else {
-        console.error('Authentication failed:', error);
-        return false;
       }
+      // Para todos os outros erros ou outros usuários, o login falha.
+      console.error('Authentication failed:', error);
+      return false;
     }
   };
 

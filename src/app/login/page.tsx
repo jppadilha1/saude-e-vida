@@ -28,6 +28,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated, isAdmin } = useAuth();
   const { toast } = useToast();
+  const firebaseAuth = useFirebaseAuth(); // Instance for login
 
   useEffect(() => {
     if (isAuthenticated) {
