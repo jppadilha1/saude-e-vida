@@ -26,15 +26,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, isAdmin } = useAuth();
   const { toast } = useToast();
-  const firebaseAuth = useFirebaseAuth();
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/');
+      if (isAdmin) {
+        router.push('/admin/instructors');
+      } else {
+        router.push('/');
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isAdmin, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,44 +52,23 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    if (!firebaseAuth) {
-        toast({
-            title: 'Erro de Autenticação',
-            description: 'Serviço de autenticação não disponível.',
-            variant: 'destructive',
-        });
-        setIsLoading(false);
-        return;
-    }
-
     try {
-      // The login function in auth-context now handles firebase auth
       const success = await login(email, password);
       
-      if (success) {
-        // The useEffect will handle redirection
-      } else {
-        // The login function will throw an error on failure, which is caught below
+      if (!success) {
         throw new Error('Falha ao processar o login.');
       }
+      // O useEffect cuidará do redirecionamento
     } catch (error: any) {
        toast({
         title: 'Erro de Autenticação',
         description: 'Email ou senha inválidos. Tente novamente.',
         variant: 'destructive',
       });
+    } finally {
       setIsLoading(false);
     }
   };
-
-  // This check prevents a flash of the login page if already authenticated.
-  if (isAuthenticated) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   const loginImage = PlaceHolderImages.find(p => p.id === 'login-background');
 
@@ -114,7 +96,7 @@ export default function LoginPage() {
               Acesso ao Painel
             </CardTitle>
             <CardDescription>
-              Use seu email e senha para acessar o painel.
+              Use seu email e senha para acessar.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

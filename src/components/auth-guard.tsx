@@ -27,6 +27,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Não renderiza providers para o admin, pois ele tem sua própria lógica
+  if (auth.isAdmin) {
+    return <>{children}</>;
+  }
+
   // O StudentProvider deve envolver o WorkoutProvider porque a agenda de treinos (workout)
   // precisa saber quais alunos pertencem ao instrutor para filtrá-los.
   return (
