@@ -15,26 +15,21 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Logo from '@/components/logo';
 import { Loader2 } from 'lucide-react';
-import { instructors } from '@/lib/instructors-data';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth as useFirebaseAuth } from '@/firebase';
 
 export default function LoginPage() {
-  const [selectedInstructor, setSelectedInstructor] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const firebaseAuth = useFirebaseAuth();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -44,31 +39,43 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedInstructor) {
+    if (!email || !password) {
       toast({
-        title: 'Seleção Necessária',
-        description: 'Por favor, selecione um instrutor para continuar.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (password !== 'senhasegura123') {
-      toast({
-        title: 'Senha Incorreta',
-        description: 'A senha informada está incorreta. Tente novamente.',
+        title: 'Campos Obrigatórios',
+        description: 'Por favor, preencha o email e a senha.',
         variant: 'destructive',
       });
       return;
     }
 
     setIsLoading(true);
-    const success = await login(selectedInstructor);
-    if (success) {
-      // The useEffect will handle the redirect
-    } else {
-      toast({
+
+    if (!firebaseAuth) {
+        toast({
+            title: 'Erro de Autenticação',
+            description: 'Serviço de autenticação não disponível.',
+            variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      const instructorId = userCredential.user.uid;
+      const isAdmin = userCredential.user.email === 'Adm@gmail.com';
+
+      const success = await login(instructorId, isAdmin);
+      
+      if (success) {
+        // O useEffect cuidará do redirecionamento
+      } else {
+        throw new Error('Falha ao processar o login no contexto da aplicação.');
+      }
+    } catch (error: any) {
+       toast({
         title: 'Erro de Autenticação',
-        description: 'Falha na autenticação. Tente novamente.',
+        description: 'Email ou senha inválidos. Tente novamente.',
         variant: 'destructive',
       });
       setIsLoading(false);
@@ -109,24 +116,19 @@ export default function LoginPage() {
               Acesso ao Painel
             </CardTitle>
             <CardDescription>
-              Selecione seu perfil de instrutor para continuar.
+              Use seu email e senha para acessar o painel.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="instructor">Instrutor</Label>
-              <Select onValueChange={setSelectedInstructor} value={selectedInstructor}>
-                <SelectTrigger id="instructor">
-                  <SelectValue placeholder="Selecione seu nome" />
-                </SelectTrigger>
-                <SelectContent>
-                  {instructors.map(instr => (
-                    <SelectItem key={instr.id} value={instr.id}>
-                      {instr.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
              <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>

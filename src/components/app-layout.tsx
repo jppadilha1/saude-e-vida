@@ -2,7 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, LogOut, User, Users, Dumbbell } from 'lucide-react';
+import {
+  LayoutDashboard,
+  LogOut,
+  User,
+  Users,
+  Dumbbell,
+  ShieldCheck,
+} from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -26,7 +33,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
 import Logo from './logo';
-import { instructors } from '@/lib/instructors-data';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -36,9 +42,12 @@ type AppLayoutProps = {
 export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, loggedInInstructorId } = useAuth();
+  const { logout, isAdmin, user } = useAuth();
 
-  const instructor = instructors.find(i => i.id === loggedInInstructorId);
+  const userName =
+    isAdmin && user?.email === 'Adm@gmail.com'
+      ? 'Admin'
+      : user?.email || 'Usuário';
 
   const handleLogout = () => {
     logout();
@@ -53,45 +62,64 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu className="gap-2 p-2">
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/'}
-                tooltip="Painel"
-                size="lg"
-              >
-                <Link href="/">
-                  <LayoutDashboard />
-                  <span className="text-base">Painel</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/workouts'}
-                tooltip="Treinos"
-                size="lg"
-              >
-                <Link href="/workouts">
-                  <Dumbbell />
-                  <span className="text-base">Treinos</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/students'}
-                tooltip="Alunos"
-                size="lg"
-              >
-                <Link href="/students">
-                  <Users />
-                  <span className="text-base">Alunos</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {!isAdmin && (
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/'}
+                    tooltip="Painel"
+                    size="lg"
+                  >
+                    <Link href="/">
+                      <LayoutDashboard />
+                      <span className="text-base">Painel</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/workouts'}
+                    tooltip="Treinos"
+                    size="lg"
+                  >
+                    <Link href="/workouts">
+                      <Dumbbell />
+                      <span className="text-base">Treinos</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/students'}
+                    tooltip="Alunos"
+                    size="lg"
+                  >
+                    <Link href="/students">
+                      <Users />
+                      <span className="text-base">Alunos</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
+            {isAdmin && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === '/admin/instructors'}
+                  tooltip="Gerenciar Instrutores"
+                  size="lg"
+                >
+                  <Link href="/admin/instructors">
+                    <ShieldCheck />
+                    <span className="text-base">Instrutores</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>
@@ -119,9 +147,9 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{instructor?.name || 'Admin'}</p>
+                  <p className="text-sm font-medium leading-none">{userName}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {`${instructor?.name.toLowerCase() || 'admin'}@saudevida.com`}
+                    {user?.email || 'não autenticado'}
                   </p>
                 </div>
               </DropdownMenuLabel>

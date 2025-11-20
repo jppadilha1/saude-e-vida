@@ -8,15 +8,19 @@ import React, {
   type ReactNode,
 } from 'react';
 import { useAuth as useFirebaseAuth, useUser } from '@/firebase';
-import { signInAnonymously } from 'firebase/auth';
-import { instructors } from '@/lib/instructors-data';
+import { 
+  signInAnonymously,
+  signOut,
+  type UserCredential
+} from 'firebase/auth';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
-  login: (instructorId: string) => Promise<boolean>;
+  login: (instructorId: string, isAdmin?: boolean) => Promise<boolean>;
   logout: () => void;
   loggedInInstructorId: string | null;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,23 +30,22 @@ const AUTH_KEY = 'saude-vida-auth';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loggedInInstructorId, setLoggedInInstructorId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [localLoading, setLocalLoading] = useState<boolean>(true);
 
   const firebaseAuth = useFirebaseAuth();
   const { user, isUserLoading: isFirebaseUserLoading } = useUser();
 
   useEffect(() => {
-    const syncAuth = async () => {
+    const syncAuth = () => {
       try {
         const storedAuth = localStorage.getItem(AUTH_KEY);
         if (storedAuth) {
           const authData = JSON.parse(storedAuth);
           if (authData.instructorId) {
             setLoggedInInstructorId(authData.instructorId);
+            setIsAdmin(authData.isAdmin || false);
             setIsAuthenticated(true);
-            if (!user && !isFirebaseUserLoading && firebaseAuth) {
-              await signInAnonymously(firebaseAuth);
-            }
           }
         }
       } catch (error) {
@@ -52,34 +55,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
     syncAuth();
-  }, [user, isFirebaseUserLoading, firebaseAuth]);
+  }, []);
 
-  const login = async (instructorId: string): Promise<boolean> => {
-    const isValidInstructor = instructors.some(i => i.id === instructorId);
-    if (isValidInstructor && firebaseAuth) {
-      try {
-        await signInAnonymously(firebaseAuth);
-        localStorage.setItem(AUTH_KEY, JSON.stringify({ instructorId }));
-        setIsAuthenticated(true);
-        setLoggedInInstructorId(instructorId);
-        return true;
-      } catch (error) {
-        console.error("Anonymous sign-in failed on login:", error);
-        return false;
-      }
-    }
-    return false;
+  const login = async (instructorId: string, isAdminFlag = false): Promise<boolean> => {
+    localStorage.setItem(AUTH_KEY, JSON.stringify({ instructorId, isAdmin: isAdminFlag }));
+    setIsAuthenticated(true);
+    setLoggedInInstructorId(instructorId);
+    setIsAdmin(isAdminFlag);
+    return true;
   };
 
   const logout = () => {
+    if(firebaseAuth) {
+      signOut(firebaseAuth);
+    }
     localStorage.removeItem(AUTH_KEY);
     setIsAuthenticated(false);
     setLoggedInInstructorId(null);
+    setIsAdmin(false);
   };
 
   const loading = localLoading || isFirebaseUserLoading;
 
-  const value = { isAuthenticated, loading, login, logout, loggedInInstructorId };
+  const value = { isAuthenticated, loading, login, logout, loggedInInstructorId, isAdmin };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
