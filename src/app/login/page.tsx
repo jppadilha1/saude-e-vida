@@ -60,7 +60,7 @@ export default function LoginPage() {
       
       if (success) {
         // Lógica de redirecionamento imediato após o sucesso do login.
-        if (email === 'Adm@gmail.com') {
+        if (email.toLowerCase() === 'adm@gmail.com') {
           router.push('/admin/instructors');
         } else {
           router.push('/');
