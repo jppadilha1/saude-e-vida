@@ -28,11 +28,9 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated, isAdmin, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const firebaseAuth = useFirebaseAuth(); // Instance for login
 
   useEffect(() => {
-    // Este useEffect agora apenas redireciona usuários que já estão logados
-    // ao carregar a página de login.
+    // Redireciona usuários que já estão logados ao carregar a página
     if (!authLoading && isAuthenticated) {
       if (isAdmin) {
         router.push('/admin/instructors');
@@ -59,19 +57,21 @@ export default function LoginPage() {
       const success = await login(email, password);
       
       if (success) {
-        // Lógica de redirecionamento imediato após o sucesso do login.
+        // Redirecionamento imediato baseado no email, sem depender do estado `isAdmin`
         if (email.toLowerCase() === 'adm@gmail.com') {
           router.push('/admin/instructors');
         } else {
           router.push('/');
         }
       } else {
-        throw new Error('Falha no login.');
+        // A falha no login já é tratada dentro da função `login`
+        // mas podemos colocar um fallback aqui se necessário.
+         throw new Error('Falha no login.');
       }
     } catch (error: any) {
        toast({
         title: 'Erro de Autenticação',
-        description: 'Email ou senha inválidos. Tente novamente.',
+        description: error.message || 'Email ou senha inválidos. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
