@@ -87,16 +87,9 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
           throw new Error('Failed to get UID from function result.');
         }
 
-        const instructorDoc = {
-          id: uid,
-          name: instructorData.name,
-          email: instructorData.email,
-        };
+        // The Cloud Function now handles creating the Firestore document.
+        // No need to call addDocumentNonBlocking here.
 
-        // We are not using non-blocking here as we need to ensure the flow completes
-        // The UI should show a loading state.
-        const instructorsCollection = collection(firestore, 'instructors');
-        await addDocumentNonBlocking(instructorsCollection, instructorDoc);
       } catch (error) {
         console.error('Error creating instructor:', error);
         throw error;
@@ -123,6 +116,8 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
         functions,
         'deleteInstructorAccount'
       );
+
+      // Call the cloud function to delete the user from Auth
       await deleteInstructorAccount({ uid: instructorId });
 
       // Also delete the instructor document from Firestore
