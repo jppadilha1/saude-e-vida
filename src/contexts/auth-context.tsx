@@ -9,15 +9,16 @@ import React, {
 } from 'react';
 import { useAuth as useFirebaseAuth, useUser } from '@/firebase';
 import { 
-  signInAnonymously,
+  signInWithEmailAndPassword,
   signOut,
-  type UserCredential
+  type User
 } from 'firebase/auth';
 
 interface AuthContextType {
+  user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (instructorId: string, isAdmin?: boolean) => Promise<boolean>;
+  login: (email: string, password?: string) => Promise<boolean>;
   logout: () => void;
   loggedInInstructorId: string | null;
   isAdmin: boolean;
@@ -25,59 +26,51 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_KEY = 'saude-vida-auth';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [loggedInInstructorId, setLoggedInInstructorId] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [localLoading, setLocalLoading] = useState<boolean>(true);
-
   const firebaseAuth = useFirebaseAuth();
   const { user, isUserLoading: isFirebaseUserLoading } = useUser();
-
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  
+  // The source of truth for authentication is now the `user` from `useUser`.
+  const isAuthenticated = !!user;
+  const loggedInInstructorId = user ? user.uid : null;
+  
   useEffect(() => {
-    const syncAuth = () => {
-      try {
-        const storedAuth = localStorage.getItem(AUTH_KEY);
-        if (storedAuth) {
-          const authData = JSON.parse(storedAuth);
-          if (authData.instructorId) {
-            setLoggedInInstructorId(authData.instructorId);
-            setIsAdmin(authData.isAdmin || false);
-            setIsAuthenticated(true);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to parse auth state from localStorage', error);
-      } finally {
-        setLocalLoading(false);
-      }
-    };
-    syncAuth();
-  }, []);
+    if (user) {
+      // Check if the logged-in user is the admin
+      setIsAdmin(user.email === 'Adm@gmail.com');
+    } else {
+      setIsAdmin(false);
+    }
+  }, [user]);
 
-  const login = async (instructorId: string, isAdminFlag = false): Promise<boolean> => {
-    localStorage.setItem(AUTH_KEY, JSON.stringify({ instructorId, isAdmin: isAdminFlag }));
-    setIsAuthenticated(true);
-    setLoggedInInstructorId(instructorId);
-    setIsAdmin(isAdminFlag);
-    return true;
+  const login = async (email: string, password?: string): Promise<boolean> => {
+    if (!firebaseAuth) {
+      console.error("Firebase auth service not available");
+      return false;
+    }
+    try {
+      if (!password) throw new Error("Password is required.");
+      // Firebase handles the authentication.
+      await signInWithEmailAndPassword(firebaseAuth, email, password);
+      // onAuthStateChanged will handle setting the user state.
+      return true;
+    } catch (error) {
+      console.error("Authentication failed:", error);
+      return false;
+    }
   };
 
   const logout = () => {
     if(firebaseAuth) {
       signOut(firebaseAuth);
     }
-    localStorage.removeItem(AUTH_KEY);
-    setIsAuthenticated(false);
-    setLoggedInInstructorId(null);
-    setIsAdmin(false);
+    // No need to manually clear state, onAuthStateChanged will do it.
   };
 
-  const loading = localLoading || isFirebaseUserLoading;
+  const loading = isFirebaseUserLoading;
 
-  const value = { isAuthenticated, loading, login, logout, loggedInInstructorId, isAdmin };
+  const value = { user, isAuthenticated, loading, login, logout, loggedInInstructorId, isAdmin };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

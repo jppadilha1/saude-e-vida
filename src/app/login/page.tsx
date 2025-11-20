@@ -19,7 +19,6 @@ import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Logo from '@/components/logo';
 import { Loader2 } from 'lucide-react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 
 export default function LoginPage() {
@@ -61,16 +60,14 @@ export default function LoginPage() {
     }
 
     try {
-      const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-      const instructorId = userCredential.user.uid;
-      const isAdmin = userCredential.user.email === 'Adm@gmail.com';
-
-      const success = await login(instructorId, isAdmin);
+      // The login function in auth-context now handles firebase auth
+      const success = await login(email, password);
       
       if (success) {
-        // O useEffect cuidará do redirecionamento
+        // The useEffect will handle redirection
       } else {
-        throw new Error('Falha ao processar o login no contexto da aplicação.');
+        // The login function will throw an error on failure, which is caught below
+        throw new Error('Falha ao processar o login.');
       }
     } catch (error: any) {
        toast({
@@ -82,6 +79,7 @@ export default function LoginPage() {
     }
   };
 
+  // This check prevents a flash of the login page if already authenticated.
   if (isAuthenticated) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">

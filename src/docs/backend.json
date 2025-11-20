@@ -116,7 +116,7 @@
         "id",
         "studentId",
         "date",
-        "isPresent"
+        "present"
       ]
     },
     "Payment": {
@@ -153,23 +153,28 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Instructor entity."
+          "description": "Unique identifier for the Instructor entity, matches Firebase Auth UID."
         },
         "name": {
           "type": "string",
           "description": "The name of the instructor."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the instructor, used for login."
         }
       },
       "required": [
         "id",
-        "name"
+        "name",
+        "email"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
@@ -177,7 +182,7 @@
       "schema": {
         "$ref": "#/entities/Student"
       },
-      "description": "Stores student data."
+      "description": "Stores student data. Instructors can only access students linked to their ID."
     },
     "/students/{studentId}/attendance/{attendanceId}": {
       "schema": {
@@ -195,7 +200,7 @@
       "schema": {
         "$ref": "#/entities/Instructor"
       },
-      "description": "Stores instructor data."
+      "description": "Stores instructor data. Writable only by admins."
     }
   }
 }

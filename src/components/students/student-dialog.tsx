@@ -41,7 +41,6 @@ import { useStudent } from '@/contexts/student-context';
 import type { Student, Payment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, History, Loader2, User } from 'lucide-react';
-import { instructors } from '@/lib/instructors-data';
 import { useAuth } from '@/contexts/auth-context';
 
 const studentSchema = z.object({
@@ -66,8 +65,7 @@ export function StudentDialog({
   const { addStudent, updateStudent, getStudentPayments } = useStudent();
   const { toast } = useToast();
   const isEditing = !!student;
-  const { loggedInInstructorId } = useAuth();
-  const currentInstructor = instructors.find(i => i.id === loggedInInstructorId);
+  const { user } = useAuth(); // Using the user from auth context
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoadingPayments, setIsLoadingPayments] = useState(false);
@@ -146,7 +144,7 @@ export function StudentDialog({
             <FormItem>
               <FormLabel>Instrutor</FormLabel>
               <Input
-                value={currentInstructor?.name || ''}
+                value={user?.displayName || user?.email || ''}
                 disabled
               />
             </FormItem>
@@ -160,7 +158,6 @@ export function StudentDialog({
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
-                    disabled={!isEditing}
                   >
                     <FormControl>
                       <SelectTrigger>
