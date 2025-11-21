@@ -13,18 +13,29 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Se não estiver carregando e não estiver autenticado, redireciona para o login
-    if (!auth.loading && !auth.isAuthenticated) {
+    if (auth.loading) {
+      return; // Aguarda a autenticação ser carregada
+    }
+
+    // 1. Redireciona usuários não autenticados para o login
+    if (!auth.isAuthenticated) {
       router.push('/login');
       return;
     }
 
-    // Se o usuário é admin e tenta acessar uma página que não é a de administração,
-    // redireciona-o para a página correta.
-    if (!auth.loading && auth.isAuthenticated && auth.isAdmin) {
-      if (pathname !== '/admin/instructors') {
+    // 2. Protege as rotas de administrador
+    if (pathname.startsWith('/admin')) {
+      if (!auth.isAdmin) {
+        // Se não for admin e tentar acessar /admin, redireciona para a home
+        router.push('/');
+      }
+      // Se for admin, pode ficar
+    } else {
+      // 3. Se for admin e estiver fora da área de admin, redireciona para lá
+      if (auth.isAdmin) {
         router.push('/admin/instructors');
       }
+      // Se não for admin e estiver fora da área de admin, pode ficar
     }
   }, [auth.isAuthenticated, auth.loading, auth.isAdmin, pathname, router]);
 
@@ -37,17 +48,25 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Se for admin, renderiza o conteúdo da página de admin sem os providers de aluno/treino
-  if (auth.isAdmin) {
+  // Se a rota for de admin e o usuário não for admin, o useEffect já terá redirecionado.
+  // Se ele for admin, pode renderizar o conteúdo.
+  if (pathname.startsWith('/admin') && auth.isAdmin) {
     return <>{children}</>;
   }
 
-  // Para instrutores, envolve com os providers necessários
-  // O StudentProvider deve envolver o WorkoutProvider porque a agenda de treinos (workout)
-  // precisa saber quais alunos pertencem ao instrutor para filtrá-los.
+  // Se não for rota de admin e não for admin, renderiza com os providers.
+  if (!pathname.startsWith('/admin') && !auth.isAdmin) {
+    return (
+      <StudentProvider>
+        <WorkoutProvider>{children}</WorkoutProvider>
+      </StudentProvider>
+    );
+  }
+
+  // Renderiza um loader como fallback enquanto o redirecionamento do useEffect acontece
   return (
-    <StudentProvider>
-      <WorkoutProvider>{children}</WorkoutProvider>
-    </StudentProvider>
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
   );
 }
