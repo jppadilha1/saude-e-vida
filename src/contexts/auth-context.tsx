@@ -19,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password?: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   loggedInInstructorId: string | null;
   isAdmin: boolean;
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (
         (error.code === 'auth/user-not-found' ||
           error.code === 'auth/invalid-credential') &&
-        email === 'Adm@gmail.com'
+        email.toLowerCase() === 'adm@gmail.com'
       ) {
         try {
           if (!password) throw new Error('Password is required for signup.');
@@ -66,12 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (signUpError) {
           // Se a criação também falhar, o login falha.
           console.error('Admin account creation failed:', signUpError);
-          return false;
+          throw signUpError; // Relança o erro da criação
         }
       }
-      // Para todos os outros erros ou outros usuários, o login falha.
+      // Para todos os outros erros ou outros usuários, relança o erro original.
       console.error('Authentication failed:', error);
-      return false;
+      throw error;
     }
   };
 
