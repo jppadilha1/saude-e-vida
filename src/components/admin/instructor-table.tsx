@@ -41,9 +41,9 @@ export default function InstructorTable({
   onEdit,
   onDelete,
 }: InstructorTableProps) {
-  const filteredInstructors = instructors.filter(
-    (inst) => inst.email !== 'Adm@gmail.com'
-  );
+  // A conta admin agora pode ser editada, mas não excluída se for o único admin.
+  // A lógica de exclusão é tratada no componente pai.
+  // Apenas garantimos que o botão de excluir seja desabilitado para o próprio admin.
 
   return (
     <div className="rounded-lg border">
@@ -56,8 +56,8 @@ export default function InstructorTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredInstructors.length > 0 ? (
-            filteredInstructors.map((instructor) => (
+          {instructors.length > 0 ? (
+            instructors.map((instructor) => (
               <TableRow key={instructor.id}>
                 <TableCell className="font-medium">{instructor.name}</TableCell>
                 <TableCell>{instructor.email}</TableCell>
@@ -75,11 +75,13 @@ export default function InstructorTable({
                         <DropdownMenuItem onClick={() => onEdit(instructor)}>
                           Editar
                         </DropdownMenuItem>
-                        <AlertDialogTrigger asChild>
-                          <DropdownMenuItem className="text-red-600 focus:text-red-600">
-                            Excluir
-                          </DropdownMenuItem>
-                        </AlertDialogTrigger>
+                        {instructor.email.toLowerCase() !== 'adm@gmail.com' && (
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-red-600 focus:text-red-600">
+                              Excluir
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                     <AlertDialogContent>

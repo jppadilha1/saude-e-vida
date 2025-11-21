@@ -15,7 +15,7 @@ setGlobalOptions({ region: "us-central1" });
 
 // Função para criar uma conta de instrutor (Auth + Firestore)
 export const createInstructorAccount = onCall(async (request) => {
-  if (request.auth?.token.email !== "Adm@gmail.com") {
+  if (request.auth?.token.email?.toLowerCase() !== "adm@gmail.com") {
     throw new HttpsError(
       "permission-denied",
       "Apenas administradores podem criar instrutores."
@@ -57,7 +57,7 @@ export const createInstructorAccount = onCall(async (request) => {
 
 // Função para deletar uma conta de instrutor (Auth + Firestore)
 export const deleteInstructorAccount = onCall(async (request) => {
-  if (request.auth?.token.email !== "Adm@gmail.com") {
+  if (request.auth?.token.email?.toLowerCase() !== "adm@gmail.com") {
     throw new HttpsError(
       "permission-denied",
       "Apenas administradores podem excluir instrutores."

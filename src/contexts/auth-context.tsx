@@ -36,8 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loggedInInstructorId = user ? user.uid : null;
 
   useEffect(() => {
-    if (user) {
-      setIsAdmin(user.email === 'Adm@gmail.com');
+    if (user && user.email) {
+      setIsAdmin(user.email.toLowerCase() === 'adm@gmail.com');
     } else {
       setIsAdmin(false);
     }

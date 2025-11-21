@@ -26,7 +26,7 @@ service cloud.firestore {
   }
 
   function isAdmin() {
-    // Define "Admin" como o usuário com este e-mail específico.
-    return request.auth.token.email == "Adm@gmail.com";
+    // Define "Admin" como o usuário com este e-mail específico (case-insensitive).
+    return request.auth.token.email.lower() == "adm@gmail.com";
   }
 }

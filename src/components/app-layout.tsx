@@ -45,9 +45,9 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
   const { logout, isAdmin, user } = useAuth();
 
   const userName =
-    isAdmin && user?.email === 'Adm@gmail.com'
+    isAdmin && user?.email?.toLowerCase() === 'adm@gmail.com'
       ? 'Admin'
-      : user?.email || 'Usuário';
+      : user?.displayName || user?.email || 'Usuário';
 
   const handleLogout = () => {
     logout();
