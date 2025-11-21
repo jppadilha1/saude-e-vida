@@ -3,16 +3,21 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     match /students/{studentId} {
-      allow read, write: if isSignedIn();
+      // An instructor can only access a student if they are the assigned instructor.
+      // An admin can access any student.
+      allow read, write: if request.auth.uid == resource.data.instructorId || isAdmin();
     }
 
     match /students/{studentId}/{document=**} {
+      // Allow access to subcollections (attendance, payments) if the user is signed in.
+      // The parent rule on /students/{studentId} already restricts access to the correct instructor/admin.
       allow read, write: if isSignedIn();
     }
     
     match /instructors/{instructorId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      // Any signed-in user can view the list of instructors.
+      allow get, list: if isSignedIn();
+      // Only an admin can create, update, or delete an instructor.
       allow create, update, delete: if isAdmin();
     }
   }
@@ -22,6 +27,7 @@ service cloud.firestore {
   }
 
   function isAdmin() {
+    // Defines "Admin" as the user with this specific email.
     return request.auth.token.email == "Adm@gmail.com";
   }
 }
