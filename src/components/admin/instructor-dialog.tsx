@@ -67,8 +67,8 @@ export function InstructorDialog({
     if (isOpen) {
       if (instructor) {
         form.reset({
-          name: instructor.name,
-          email: instructor.email,
+          name: instructor.name || '',
+          email: instructor.email || '',
           password: '',
         });
         // Remove password validation when editing
