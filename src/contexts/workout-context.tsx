@@ -1,11 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, type ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from 'react';
 import { initialWorkoutData } from '@/lib/workout-data';
 import type { WorkoutData } from '@/types';
 import { useAuth } from './auth-context';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface WorkoutContextType {
   workoutData: WorkoutData;
@@ -21,43 +21,52 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { loggedInInstructorId, loading: authLoading } = useAuth();
   
-  const workoutDocRef = useMemoFirebase(() => {
-    // Só constrói a referência se o ID do instrutor estiver disponível
-    if (!firestore || !loggedInInstructorId) return null;
-    return doc(firestore, 'workoutSchedules', loggedInInstructorId);
-  }, [firestore, loggedInInstructorId]);
-
-  const { data: workoutDoc, isLoading: workoutLoading } = useDoc<{schedule: WorkoutData}>(workoutDocRef);
-
-  const [localWorkoutData, setLocalWorkoutData] = useState<WorkoutData>(initialWorkoutData);
+  const [workoutData, setWorkoutData] = useState<WorkoutData>(initialWorkoutData);
+  const [workoutLoading, setWorkoutLoading] = useState(true);
 
   useEffect(() => {
-    // Se a autenticação estiver carregando ou o ID não estiver disponível, não faça nada.
-    if (authLoading || !loggedInInstructorId) {
+    // Aguarda a autenticação e o firestore estarem prontos
+    if (authLoading || !firestore || !loggedInInstructorId) {
       return;
     }
-    
-    // Se o documento existe no Firestore, usa esses dados.
-    if (workoutDoc) {
-      setLocalWorkoutData(workoutDoc.schedule);
-    } 
-    // Se a busca terminou (workoutLoading é false), temos um ID, mas o doc não existe.
-    else if (!workoutLoading && workoutDocRef) {
-        // Isso significa que o documento de agenda precisa ser criado.
-        setLocalWorkoutData(initialWorkoutData);
-        setDoc(workoutDocRef, { schedule: initialWorkoutData });
-    }
-  }, [workoutDoc, workoutLoading, authLoading, loggedInInstructorId, workoutDocRef]);
+
+    const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
+
+    const checkAndInitializeSchedule = async () => {
+      setWorkoutLoading(true);
+      try {
+        const docSnap = await getDoc(workoutDocRef);
+
+        if (docSnap.exists()) {
+          // Documento existe, carrega os dados
+          setWorkoutData(docSnap.data().schedule as WorkoutData);
+        } else {
+          // Documento não existe, cria com os dados iniciais
+          await setDoc(workoutDocRef, { schedule: initialWorkoutData });
+          setWorkoutData(initialWorkoutData);
+        }
+      } catch (error) {
+        console.error("Error checking/creating workout schedule:", error);
+        // Em caso de erro, usa os dados locais como fallback
+        setWorkoutData(initialWorkoutData);
+      } finally {
+        setWorkoutLoading(false);
+      }
+    };
+
+    checkAndInitializeSchedule();
+  }, [authLoading, firestore, loggedInInstructorId]);
 
 
-  const updateFirestoreSchedule = (newSchedule: WorkoutData) => {
-    if (workoutDocRef) {
-      setDoc(workoutDocRef, { schedule: newSchedule }, { merge: true });
+  const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
+    if (firestore && loggedInInstructorId) {
+      const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
+      setDoc(workoutDocRef, { schedule: newSchedule });
     }
-  };
+  }, [firestore, loggedInInstructorId]);
 
   const syncWorkoutData = useCallback((studentNames: Set<string>) => {
-    const currentSchedule = workoutDoc?.schedule || localWorkoutData;
+    const currentSchedule = workoutData;
     const newData = JSON.parse(JSON.stringify(currentSchedule));
     let hasChanged = false;
     
@@ -72,37 +81,37 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     }
     
     if (hasChanged) {
-      setLocalWorkoutData(newData);
+      setWorkoutData(newData);
       updateFirestoreSchedule(newData);
     }
-  }, [workoutDoc, localWorkoutData]);
+  }, [workoutData, updateFirestoreSchedule]);
 
   const toggleStudentWorkout = (studentName: string, day: string, time: string, add: boolean): boolean => {
-    const currentSchedule = JSON.parse(JSON.stringify(localWorkoutData));
+    const newSchedule = JSON.parse(JSON.stringify(workoutData));
     
     if (add) {
-      const studentsInSlot = currentSchedule[day]?.[time] || [];
+      const studentsInSlot = newSchedule[day]?.[time] || [];
       if (studentsInSlot.length >= 2) {
         return false; 
       }
-      if (!currentSchedule[day]) currentSchedule[day] = {};
-      if (!currentSchedule[day][time]) currentSchedule[day][time] = [];
+      if (!newSchedule[day]) newSchedule[day] = {};
+      if (!newSchedule[day][time]) newSchedule[day][time] = [];
       
-      if (!currentSchedule[day][time].includes(studentName)) {
-        currentSchedule[day][time] = [...currentSchedule[day][time], studentName];
+      if (!newSchedule[day][time].includes(studentName)) {
+        newSchedule[day][time] = [...newSchedule[day][time], studentName];
       }
     } else {
-      if (currentSchedule[day]?.[time]?.includes(studentName)) {
-        currentSchedule[day][time] = currentSchedule[day][time].filter((name:string) => name !== studentName);
+      if (newSchedule[day]?.[time]?.includes(studentName)) {
+        newSchedule[day][time] = newSchedule[day][time].filter((name:string) => name !== studentName);
       }
     }
-    setLocalWorkoutData(currentSchedule);
-    updateFirestoreSchedule(currentSchedule);
+    setWorkoutData(newSchedule);
+    updateFirestoreSchedule(newSchedule);
     return true;
   };
 
   const removeStudentFromSchedule = (studentName: string) => {
-    const newData = JSON.parse(JSON.stringify(localWorkoutData));
+    const newData = JSON.parse(JSON.stringify(workoutData));
     for (const day in newData) {
       for (const time in newData[day]) {
         const index = newData[day][time].indexOf(studentName);
@@ -111,15 +120,14 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-    setLocalWorkoutData(newData);
+    setWorkoutData(newData);
     updateFirestoreSchedule(newData);
   };
 
-  // O carregamento agora depende da autenticação E da busca do documento
   const loading = authLoading || workoutLoading;
 
   return (
-    <WorkoutContext.Provider value={{ workoutData: localWorkoutData, loading, toggleStudentWorkout, removeStudentFromSchedule, syncWorkoutData }}>
+    <WorkoutContext.Provider value={{ workoutData, loading, toggleStudentWorkout, removeStudentFromSchedule, syncWorkoutData }}>
       {children}
     </WorkoutContext.Provider>
   );
