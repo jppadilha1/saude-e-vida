@@ -10,7 +10,7 @@ service cloud.firestore {
     match /students/{studentId}/{document=**} {
       // Permite o acesso a subcoleções (presença, pagamentos) se o usuário estiver autenticado
       // e tiver acesso ao documento pai do aluno.
-      allow read, write: if isSignedIn() && get(/databases/$(database)/documents/students/$(studentId)).data.instructorId == request.auth.uid || isAdmin();
+      allow read, write: if isSignedIn() && (get(/databases/$(database)/documents/students/$(studentId)).data.instructorId == request.auth.uid || isAdmin());
     }
     
     match /instructors/{instructorId} {
@@ -20,7 +20,7 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    match /workouts/{instructorId} {
+    match /workoutSchedules/{instructorId} {
       // Um instrutor só pode ler e escrever em sua própria agenda.
       // Admins também têm acesso.
       allow read, write: if request.auth.uid == instructorId || isAdmin();

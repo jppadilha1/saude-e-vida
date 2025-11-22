@@ -23,7 +23,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   
   const workoutDocRef = useMemoFirebase(() => {
     if (!firestore || !loggedInInstructorId) return null;
-    return doc(firestore, 'workouts', loggedInInstructorId);
+    return doc(firestore, 'workoutSchedules', loggedInInstructorId);
   }, [firestore, loggedInInstructorId]);
 
   const { data: workoutDoc, isLoading: workoutLoading } = useDoc<{schedule: WorkoutData}>(workoutDocRef);

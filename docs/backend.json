@@ -10,6 +10,10 @@
           "type": "string",
           "description": "Unique identifier for the Student entity."
         },
+        "instructorId": {
+          "type": "string",
+          "description": "Reference to the Instructor. (Relationship: Instructor 1:N Student)"
+        },
         "name": {
           "type": "string",
           "description": "The name of the student."
@@ -80,7 +84,8 @@
         "name",
         "enrollmentDate",
         "status",
-        "paymentStatus"
+        "paymentStatus",
+        "instructorId"
       ]
     },
     "Attendance": {
@@ -111,7 +116,7 @@
         "id",
         "studentId",
         "date",
-        "isPresent"
+        "present"
       ]
     },
     "Payment": {
@@ -139,12 +144,59 @@
         "studentId",
         "paymentDate"
       ]
+    },
+    "Instructor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Instructor",
+      "type": "object",
+      "description": "Represents an instructor at the academy.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Instructor entity, matches Firebase Auth UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the instructor."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the instructor, used for login."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email"
+      ]
+    },
+     "Workout": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Workout",
+      "description": "Represents the weekly workout schedule for a single instructor.",
+      "type": "object",
+      "properties": {
+        "schedule": {
+          "type": "object",
+          "description": "The workout schedule, mapping days of the week to time slots and student names.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": ["schedule"]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
@@ -152,7 +204,7 @@
       "schema": {
         "$ref": "#/entities/Student"
       },
-      "description": "Stores student data."
+      "description": "Stores student data. Instructors can only access students linked to their ID."
     },
     "/students/{studentId}/attendance/{attendanceId}": {
       "schema": {
@@ -165,6 +217,16 @@
         "$ref": "#/entities/Payment"
       },
       "description": "Stores payment history for each student."
+    },
+    "/instructors/{instructorId}": {
+      "schema": {
+        "$ref": "#/entities/Instructor"
+      },
+      "description": "Stores instructor data. Writable only by admins."
+    },
+    "/workoutSchedules/{instructorId}": {
+      "schema": { "$ref": "#/entities/Workout" },
+      "description": "Stores the weekly workout schedule for each instructor. The document ID is the instructor's UID."
     }
   }
 }
