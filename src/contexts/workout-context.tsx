@@ -5,7 +5,7 @@ import { initialWorkoutData } from '@/lib/workout-data';
 import type { WorkoutData } from '@/types';
 import { useAuth } from './auth-context';
 import { useFirestore } from '@/firebase';
-import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -34,38 +34,36 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
+    // O caminho agora é 'workouts'
+    const workoutDocRef = doc(firestore, 'workouts', loggedInInstructorId);
 
-    const checkAndInitializeSchedule = async () => {
-      try {
-        const docSnap = await getDoc(workoutDocRef);
-
-        if (!docSnap.exists()) {
-          // Documento não existe, então o criamos.
-          // A regra de segurança `allow create: if isSignedIn()` permitirá esta operação.
-          await setDoc(workoutDocRef, { schedule: initialWorkoutData });
-          setWorkoutData(initialWorkoutData);
+    // Usamos onSnapshot para escutar em tempo real.
+    // Ele lida com a criação do documento se não existir.
+    const unsubscribe = onSnapshot(workoutDocRef, 
+      (snapshot) => {
+        if (snapshot.exists()) {
+          // Documento existe, carregamos os dados.
+          setWorkoutData(snapshot.data().schedule as WorkoutData);
+        } else {
+          // Documento não existe. Criamos ele.
+          // A regra "allow write" permitirá isso.
+          setDoc(workoutDocRef, { schedule: initialWorkoutData })
+            .then(() => {
+              setWorkoutData(initialWorkoutData);
+            })
+            .catch(error => {
+              const permissionError = new FirestorePermissionError({
+                  path: workoutDocRef.path,
+                  operation: 'create',
+                  requestResourceData: { schedule: initialWorkoutData }
+              });
+              errorEmitter.emit('permission-error', permissionError);
+            });
         }
-        
-        // Agora que garantimos que o documento existe, podemos nos inscrever para atualizações.
-        const unsubscribe = onSnapshot(workoutDocRef, (snapshot) => {
-          if (snapshot.exists()) {
-            setWorkoutData(snapshot.data().schedule as WorkoutData);
-          }
-          setWorkoutLoading(false);
-        }, (error) => {
-          const permissionError = new FirestorePermissionError({
-              path: workoutDocRef.path,
-              operation: 'get',
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          setWorkoutLoading(false);
-        });
-
-        return unsubscribe;
-
-      } catch (error) {
-        // Se houver um erro de permissão na leitura inicial
+        setWorkoutLoading(false);
+      }, 
+      (error) => {
+        // Erro ao tentar escutar o documento.
         const permissionError = new FirestorePermissionError({
             path: workoutDocRef.path,
             operation: 'get',
@@ -73,25 +71,19 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         errorEmitter.emit('permission-error', permissionError);
         setWorkoutLoading(false);
       }
-    };
-    
-    let unsubscribe: (() => void) | undefined;
-    checkAndInitializeSchedule().then(unsub => {
-        if(unsub) unsubscribe = unsub;
-    });
+    );
 
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      // Limpa a escuta quando o componente é desmontado.
+      unsubscribe();
     };
 
   }, [firestore, loggedInInstructorId, authLoading]);
 
   const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
     if (firestore && loggedInInstructorId) {
-      const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
-      // A regra `allow update` protegerá esta operação
+      const workoutDocRef = doc(firestore, 'workouts', loggedInInstructorId);
+      // A regra `allow write` protegerá esta operação
       setDoc(workoutDocRef, { schedule: newSchedule }, { merge: true })
         .catch(error => {
             const permissionError = new FirestorePermissionError({
