@@ -5,7 +5,7 @@ import { initialWorkoutData } from '@/lib/workout-data';
 import type { WorkoutData } from '@/types';
 import { useAuth } from './auth-context';
 import { useFirestore } from '@/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -27,7 +27,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [workoutLoading, setWorkoutLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore || !loggedInInstructorId) {
+    if (!firestore || !loggedInInstructorId || authLoading) {
       if (!authLoading) {
         setWorkoutLoading(false);
       }
@@ -36,39 +36,45 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
     const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
 
-    const checkAndInitializeSchedule = async () => {
-      setWorkoutLoading(true);
-      try {
-        const docSnap = await getDoc(workoutDocRef);
+    // Usa setDoc com merge para criar o documento se ele não existir, sem causar erro de leitura.
+    // Isso satisfaz a regra de 'write' em vez da regra de 'read'.
+    setDoc(workoutDocRef, { schedule: initialWorkoutData }, { merge: true })
+      .then(() => {
+        // Uma vez que garantimos que o documento existe, podemos nos inscrever com segurança.
+        const unsubscribe = onSnapshot(workoutDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setWorkoutData(docSnap.data().schedule as WorkoutData);
+          }
+          setWorkoutLoading(false);
+        }, (error) => {
+            const permissionError = new FirestorePermissionError({
+                path: workoutDocRef.path,
+                operation: 'get', // O erro agora seria na subscrição (leitura)
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            setWorkoutLoading(false);
+        });
 
-        if (docSnap.exists()) {
-          // Se o documento existe, carrega os dados no estado
-          setWorkoutData(docSnap.data().schedule as WorkoutData);
-        } else {
-          // Se o documento NÃO existe, cria ele com a agenda inicial
-          await setDoc(workoutDocRef, { schedule: initialWorkoutData });
-          setWorkoutData(initialWorkoutData);
-        }
-      } catch (error) {
-        // Se houver um erro de permissão na leitura ou escrita
+        // Retorna a função de limpeza para o useEffect
+        return unsubscribe;
+      })
+      .catch(error => {
+        // Erro de permissão na operação de escrita inicial
         const permissionError = new FirestorePermissionError({
             path: workoutDocRef.path,
-            operation: 'get', // O erro provavelmente ocorre na tentativa de 'get'
+            operation: 'write',
+            requestResourceData: { schedule: initialWorkoutData }
         });
         errorEmitter.emit('permission-error', permissionError);
-      } finally {
         setWorkoutLoading(false);
-      }
-    };
+      });
 
-    checkAndInitializeSchedule();
   }, [firestore, loggedInInstructorId, authLoading]);
 
 
   const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
     if (firestore && loggedInInstructorId) {
       const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
-      // Usamos setDoc com merge para garantir que não vamos sobrescrever outros campos, se existirem.
       setDoc(workoutDocRef, { schedule: newSchedule }, { merge: true })
         .catch(error => {
             const permissionError = new FirestorePermissionError({
