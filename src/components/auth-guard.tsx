@@ -40,7 +40,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [auth.isAuthenticated, auth.loading, auth.isAdmin, pathname, router]);
 
   // Mostra o loader enquanto carrega as informações de autenticação ou redireciona
-  if (auth.loading || !auth.isAuthenticated) {
+  if (auth.loading || !auth.user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -55,7 +55,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Se não for rota de admin e não for admin, renderiza com os providers.
-  if (!pathname.startsWith('/admin') && !auth.isAdmin) {
+  // A verificação !auth.loading garante que os providers só renderizem com o user disponível.
+  if (!pathname.startsWith('/admin') && !auth.isAdmin && !auth.loading) {
     return (
       <StudentProvider>
         <WorkoutProvider>{children}</WorkoutProvider>
