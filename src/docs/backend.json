@@ -170,6 +170,28 @@
         "name",
         "email"
       ]
+    },
+     "Workout": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Workout",
+      "description": "Represents the weekly workout schedule for a single instructor.",
+      "type": "object",
+      "properties": {
+        "schedule": {
+          "type": "object",
+          "description": "The workout schedule, mapping days of the week to time slots and student names.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": ["schedule"]
     }
   },
   "auth": {
@@ -201,6 +223,10 @@
         "$ref": "#/entities/Instructor"
       },
       "description": "Stores instructor data. Writable only by admins."
+    },
+    "/workouts/{instructorId}": {
+      "schema": { "$ref": "#/entities/Workout" },
+      "description": "Stores the weekly workout schedule for each instructor. The document ID is the instructor's UID."
     }
   }
 }

@@ -42,3 +42,10 @@ export type Instructor = {
   name: string;
   email: string;
 };
+
+// Estrutura para os dados de treino no Firestore
+export type WorkoutData = {
+  [day: string]: {
+    [time: string]: string[]; // Array de nomes de alunos
+  };
+};

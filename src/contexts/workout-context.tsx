@@ -1,15 +1,15 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode, useMemo, useCallback } from 'react';
 import { initialWorkoutData } from '@/lib/workout-data';
-
-// Definindo os tipos para os dados de treino
-type WorkoutSlot = string[]; // Array de nomes de alunos
-type WorkoutDay = Record<string, WorkoutSlot>; // Chave é o horário (e.g., "7:00-8:00")
-type WorkoutData = Record<string, WorkoutDay>; // Chave é o dia da semana
+import type { WorkoutData } from '@/types';
+import { useAuth } from './auth-context';
+import { useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 interface WorkoutContextType {
   workoutData: WorkoutData;
+  loading: boolean;
   toggleStudentWorkout: (studentName: string, day: string, time: string, add: boolean) => boolean;
   removeStudentFromSchedule: (studentName: string) => void;
   syncWorkoutData: (studentNames: Set<string>) => void;
@@ -17,103 +17,100 @@ interface WorkoutContextType {
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
-const WORKOUT_STORAGE_KEY = 'saude-vida-workout-data';
-
 export function WorkoutProvider({ children }: { children: ReactNode }) {
-  const [workoutData, setWorkoutData] = useState<WorkoutData>(() => {
-    try {
-      const storedData = localStorage.getItem(WORKOUT_STORAGE_KEY);
-      if (storedData) {
-        return JSON.parse(storedData);
-      }
-    } catch (error) {
-      console.error("Failed to parse workout data from localStorage", error);
-    }
-    return initialWorkoutData;
-  });
+  const firestore = useFirestore();
+  const { loggedInInstructorId, loading: authLoading } = useAuth();
+  
+  const workoutDocRef = useMemoFirebase(() => {
+    if (!firestore || !loggedInInstructorId) return null;
+    return doc(firestore, 'workouts', loggedInInstructorId);
+  }, [firestore, loggedInInstructorId]);
+
+  const { data: workoutDoc, isLoading: workoutLoading } = useDoc<{schedule: WorkoutData}>(workoutDocRef);
+
+  const [localWorkoutData, setLocalWorkoutData] = useState<WorkoutData>(initialWorkoutData);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(WORKOUT_STORAGE_KEY, JSON.stringify(workoutData));
-    } catch (error) {
-      console.error("Failed to save workout data to localStorage", error);
-    }
-  }, [workoutData]);
-
-
-  const syncWorkoutData = (studentNames: Set<string>) => {
-    setWorkoutData(prevData => {
-      const newData = JSON.parse(JSON.stringify(prevData)); // Deep copy
-      let hasChanged = false;
-      
-      for (const day in newData) {
-        for (const time in newData[day]) {
-          const originalLength = newData[day][time].length;
-          // Filtra mantendo apenas os alunos que existem na lista de alunos
-          newData[day][time] = newData[day][time].filter((name: string) => studentNames.has(name));
-          if (newData[day][time].length !== originalLength) {
-            hasChanged = true;
-          }
-        }
+    if (workoutDoc) {
+      setLocalWorkoutData(workoutDoc.schedule);
+    } else if (!workoutLoading && loggedInInstructorId) {
+      // Se o documento não existe e não está carregando, inicializa com os dados padrão
+      setLocalWorkoutData(initialWorkoutData);
+      if(workoutDocRef){
+        setDocumentNonBlocking(workoutDocRef, { schedule: initialWorkoutData }, {});
       }
-      
-      return hasChanged ? newData : prevData;
-    });
+    }
+  }, [workoutDoc, workoutLoading, loggedInInstructorId, workoutDocRef]);
+
+  const updateFirestoreSchedule = (newSchedule: WorkoutData) => {
+    if (workoutDocRef) {
+      setDocumentNonBlocking(workoutDocRef, { schedule: newSchedule }, { merge: true });
+    }
   };
 
-  const toggleStudentWorkout = (studentName: string, day: string, time: string, add: boolean): boolean => {
+  const syncWorkoutData = useCallback((studentNames: Set<string>) => {
+    const currentSchedule = workoutDoc?.schedule || localWorkoutData;
+    const newData = JSON.parse(JSON.stringify(currentSchedule));
+    let hasChanged = false;
     
-    // Se for para adicionar um aluno
-    if (add) {
-      const studentsInSlot = workoutData[day]?.[time] || [];
-      // Verifica se o horário está cheio
-      if (studentsInSlot.length >= 2) {
-        return false; // Retorna false se o slot está cheio
+    for (const day in newData) {
+      for (const time in newData[day]) {
+        const originalLength = newData[day][time].length;
+        newData[day][time] = newData[day][time].filter((name: string) => studentNames.has(name));
+        if (newData[day][time].length !== originalLength) {
+          hasChanged = true;
+        }
       }
-      // Adiciona o aluno
-      setWorkoutData(prevData => {
-        const newData = { ...prevData };
-        // Garante que o dia e o horário existam
-        if (!newData[day]) newData[day] = {};
-        if (!newData[day][time]) newData[day][time] = [];
-        
-        // Adiciona o aluno se ele já não estiver lá
-        if (!newData[day][time].includes(studentName)) {
-            newData[day][time] = [...newData[day][time], studentName];
-        }
-        return newData;
-      });
-    } else {
-      // Se for para remover um aluno
-      setWorkoutData(prevData => {
-        const newData = { ...prevData };
-        if (newData[day]?.[time]?.includes(studentName)) {
-            newData[day][time] = newData[day][time].filter(name => name !== studentName);
-        }
-        return newData;
-      });
     }
-    return true; // Retorna true se a operação foi bem-sucedida
+    
+    if (hasChanged) {
+      setLocalWorkoutData(newData);
+      updateFirestoreSchedule(newData);
+    }
+  }, [workoutDoc, localWorkoutData]);
+
+  const toggleStudentWorkout = (studentName: string, day: string, time: string, add: boolean): boolean => {
+    const currentSchedule = { ...localWorkoutData };
+    
+    if (add) {
+      const studentsInSlot = currentSchedule[day]?.[time] || [];
+      if (studentsInSlot.length >= 2) {
+        return false; 
+      }
+      if (!currentSchedule[day]) currentSchedule[day] = {};
+      if (!currentSchedule[day][time]) currentSchedule[day][time] = [];
+      
+      if (!currentSchedule[day][time].includes(studentName)) {
+        currentSchedule[day][time] = [...currentSchedule[day][time], studentName];
+      }
+    } else {
+      if (currentSchedule[day]?.[time]?.includes(studentName)) {
+        currentSchedule[day][time] = currentSchedule[day][time].filter(name => name !== studentName);
+      }
+    }
+    setLocalWorkoutData(currentSchedule);
+    updateFirestoreSchedule(currentSchedule);
+    return true;
   };
 
   const removeStudentFromSchedule = (studentName: string) => {
-    setWorkoutData(prevData => {
-      const newData = JSON.parse(JSON.stringify(prevData)); // Deep copy
-      for (const day in newData) {
-        for (const time in newData[day]) {
-          const index = newData[day][time].indexOf(studentName);
-          if (index > -1) {
-            newData[day][time].splice(index, 1);
-          }
+    const newData = JSON.parse(JSON.stringify(localWorkoutData));
+    for (const day in newData) {
+      for (const time in newData[day]) {
+        const index = newData[day][time].indexOf(studentName);
+        if (index > -1) {
+          newData[day][time].splice(index, 1);
         }
       }
-      return newData;
-    });
+    }
+    setLocalWorkoutData(newData);
+    updateFirestoreSchedule(newData);
   };
 
+  const loading = authLoading || workoutLoading;
 
   return (
-    <WorkoutContext.Provider value={{ workoutData, toggleStudentWorkout, removeStudentFromSchedule, syncWorkoutData }}>
+    <WorkoutContext.Provider value={{ workoutData: localWorkoutData, loading, toggleStudentWorkout, removeStudentFromSchedule, syncWorkoutData }}>
       {children}
     </WorkoutContext.Provider>
   );
