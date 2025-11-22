@@ -6,6 +6,8 @@ import type { WorkoutData } from '@/types';
 import { useAuth } from './auth-context';
 import { useFirestore } from '@/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface WorkoutContextType {
   workoutData: WorkoutData;
@@ -42,12 +44,25 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         if (docSnap.exists()) {
           setWorkoutData(docSnap.data().schedule as WorkoutData);
         } else {
-          await setDoc(workoutDocRef, { schedule: initialWorkoutData });
+          // Documento não existe, vamos criar.
+          await setDoc(workoutDocRef, { schedule: initialWorkoutData })
+            .catch(error => {
+                const permissionError = new FirestorePermissionError({
+                    path: workoutDocRef.path,
+                    operation: 'create',
+                    requestResourceData: { schedule: initialWorkoutData }
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
           setWorkoutData(initialWorkoutData);
         }
       } catch (error) {
-        console.error("Error checking/creating workout schedule:", error);
-        setWorkoutData(initialWorkoutData);
+        // Captura erro na leitura (getDoc)
+        const permissionError = new FirestorePermissionError({
+            path: workoutDocRef.path,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
       } finally {
         setWorkoutLoading(false);
       }
@@ -60,7 +75,15 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
     if (firestore && loggedInInstructorId) {
       const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
-      setDoc(workoutDocRef, { schedule: newSchedule });
+      setDoc(workoutDocRef, { schedule: newSchedule }, { merge: true })
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: workoutDocRef.path,
+                operation: 'update',
+                requestResourceData: { schedule: newSchedule }
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
     }
   }, [firestore, loggedInInstructorId]);
 
