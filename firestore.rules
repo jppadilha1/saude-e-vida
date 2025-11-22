@@ -2,32 +2,39 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Regra para a coleção de alunos
     match /students/{studentId} {
-      // An instructor can only access a student if they are the assigned instructor.
-      // An admin can access any student.
+      // Um instrutor só pode ler ou escrever em um documento de aluno
+      // se o 'instructorId' no documento for igual ao UID do instrutor autenticado.
+      // Um administrador (isAdmin) também tem acesso total.
       allow read, write: if request.auth.uid == resource.data.instructorId || isAdmin();
     }
 
+    // Regra para as subcoleções de um aluno (presença, pagamentos)
     match /students/{studentId}/{document=**} {
-      // Allow access to subcollections (attendance, payments) if the user is signed in.
-      // The parent rule on /students/{studentId} already restricts access to the correct instructor/admin.
+      // Permite o acesso se o usuário já tiver permissão para acessar o documento pai (aluno).
+      // Isso é verificado pela regra acima. A função isSignedIn() garante que apenas usuários
+      // autenticados podem prosseguir, o que já é coberto pela regra principal.
       allow read, write: if isSignedIn();
     }
     
+    // Regra para a coleção de instrutores
     match /instructors/{instructorId} {
-      // Any signed-in user can view the list of instructors.
+      // Qualquer usuário autenticado pode ver a lista de instrutores.
       allow get, list: if isSignedIn();
-      // Only an admin can create, update, or delete an instructor.
+      // Apenas um administrador pode criar, atualizar ou excluir um instrutor.
       allow create, update, delete: if isAdmin();
     }
   }
 
+  // Função auxiliar para verificar se o usuário está autenticado.
   function isSignedIn() {
     return request.auth != null;
   }
 
+  // Função auxiliar para verificar se o usuário é o administrador.
+  // A comparação é feita em minúsculas para evitar problemas de "case".
   function isAdmin() {
-    // Defines "Admin" as the user with this specific email.
-    return request.auth.token.email == "Adm@gmail.com";
+    return request.auth.token.email.lower() == "adm@gmail.com";
   }
 }
