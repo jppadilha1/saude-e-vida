@@ -87,3 +87,31 @@ export const deleteInstructorAccount = onCall(async (request) => {
     throw new HttpsError("internal", error.message || "Erro desconhecido ao excluir conta.");
   }
 });
+
+
+// Função para listar todos os usuários do Firebase Authentication
+export const listAllAuthUsers = onCall(async (request) => {
+  // Protege a função para que apenas o administrador possa chamá-la
+  if (request.auth?.token.email?.toLowerCase() !== "adm@gmail.com") {
+    throw new HttpsError(
+      "permission-denied",
+      "Apenas administradores podem listar os usuários de autenticação."
+    );
+  }
+
+  try {
+    const userRecords = await admin.auth().listUsers();
+    const users = userRecords.users.map((user) => ({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      disabled: user.disabled,
+      creationTime: user.metadata.creationTime,
+    }));
+
+    return { users };
+  } catch (error: any) {
+    console.error("Error listing users:", error);
+    throw new HttpsError("internal", error.message || "Erro desconhecido ao listar usuários.");
+  }
+});
