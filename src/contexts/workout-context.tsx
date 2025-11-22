@@ -27,8 +27,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [workoutLoading, setWorkoutLoading] = useState(true);
 
   useEffect(() => {
-    // Aguarda a autenticação e o ID do instrutor estarem disponíveis.
-    if (authLoading || !firestore || !loggedInInstructorId) {
+    if (!firestore || !loggedInInstructorId) {
       if (!authLoading) {
         setWorkoutLoading(false);
       }
@@ -43,27 +42,18 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         const docSnap = await getDoc(workoutDocRef);
 
         if (docSnap.exists()) {
-          // O documento existe, então podemos ler e definir os dados.
+          // Se o documento existe, carrega os dados no estado
           setWorkoutData(docSnap.data().schedule as WorkoutData);
         } else {
-          // O documento NÃO existe. Apenas criamos ele com a agenda inicial.
-          // Não tentamos ler depois, apenas definimos o estado local.
-          await setDoc(workoutDocRef, { schedule: initialWorkoutData })
-            .catch(error => {
-                const permissionError = new FirestorePermissionError({
-                    path: workoutDocRef.path,
-                    operation: 'create',
-                    requestResourceData: { schedule: initialWorkoutData }
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            });
+          // Se o documento NÃO existe, cria ele com a agenda inicial
+          await setDoc(workoutDocRef, { schedule: initialWorkoutData });
           setWorkoutData(initialWorkoutData);
         }
       } catch (error) {
-        // Captura erro na leitura (getDoc)
+        // Se houver um erro de permissão na leitura ou escrita
         const permissionError = new FirestorePermissionError({
             path: workoutDocRef.path,
-            operation: 'get',
+            operation: 'get', // O erro provavelmente ocorre na tentativa de 'get'
         });
         errorEmitter.emit('permission-error', permissionError);
       } finally {
@@ -72,8 +62,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     };
 
     checkAndInitializeSchedule();
-  // A dependência de loggedInInstructorId garante que isso rode quando o usuário fizer login.
-  }, [authLoading, firestore, loggedInInstructorId]);
+  }, [firestore, loggedInInstructorId, authLoading]);
 
 
   const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
