@@ -21,9 +21,10 @@ service cloud.firestore {
     }
 
     match /workoutSchedules/{instructorId} {
-      // Um instrutor só pode ler e escrever em sua própria agenda.
-      // Admins também têm acesso.
-      allow read, write: if request.auth.uid == instructorId || isAdmin();
+      // Um usuário autenticado pode criar sua própria agenda.
+      allow create: if isSignedIn();
+      // Um instrutor só pode ler, atualizar ou deletar sua própria agenda. Admins também têm acesso.
+      allow read, update, delete: if request.auth.uid == instructorId || isAdmin();
     }
   }
 

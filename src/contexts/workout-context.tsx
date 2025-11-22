@@ -36,45 +36,62 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
     const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
 
-    // Usa setDoc com merge para criar o documento se ele não existir, sem causar erro de leitura.
-    // Isso satisfaz a regra de 'write' em vez da regra de 'read'.
-    setDoc(workoutDocRef, { schedule: initialWorkoutData }, { merge: true })
-      .then(() => {
-        // Uma vez que garantimos que o documento existe, podemos nos inscrever com segurança.
-        const unsubscribe = onSnapshot(workoutDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setWorkoutData(docSnap.data().schedule as WorkoutData);
+    const checkAndInitializeSchedule = async () => {
+      try {
+        const docSnap = await getDoc(workoutDocRef);
+
+        if (!docSnap.exists()) {
+          // Documento não existe, então o criamos.
+          // A regra de segurança `allow create: if isSignedIn()` permitirá esta operação.
+          await setDoc(workoutDocRef, { schedule: initialWorkoutData });
+          setWorkoutData(initialWorkoutData);
+        }
+        
+        // Agora que garantimos que o documento existe, podemos nos inscrever para atualizações.
+        const unsubscribe = onSnapshot(workoutDocRef, (snapshot) => {
+          if (snapshot.exists()) {
+            setWorkoutData(snapshot.data().schedule as WorkoutData);
           }
           setWorkoutLoading(false);
         }, (error) => {
-            const permissionError = new FirestorePermissionError({
-                path: workoutDocRef.path,
-                operation: 'get', // O erro agora seria na subscrição (leitura)
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            setWorkoutLoading(false);
+          const permissionError = new FirestorePermissionError({
+              path: workoutDocRef.path,
+              operation: 'get',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setWorkoutLoading(false);
         });
 
-        // Retorna a função de limpeza para o useEffect
         return unsubscribe;
-      })
-      .catch(error => {
-        // Erro de permissão na operação de escrita inicial
+
+      } catch (error) {
+        // Se houver um erro de permissão na leitura inicial
         const permissionError = new FirestorePermissionError({
             path: workoutDocRef.path,
-            operation: 'write',
-            requestResourceData: { schedule: initialWorkoutData }
+            operation: 'get',
         });
         errorEmitter.emit('permission-error', permissionError);
         setWorkoutLoading(false);
-      });
+      }
+    };
+    
+    let unsubscribe: (() => void) | undefined;
+    checkAndInitializeSchedule().then(unsub => {
+        if(unsub) unsubscribe = unsub;
+    });
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
 
   }, [firestore, loggedInInstructorId, authLoading]);
-
 
   const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
     if (firestore && loggedInInstructorId) {
       const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
+      // A regra `allow update` protegerá esta operação
       setDoc(workoutDocRef, { schedule: newSchedule }, { merge: true })
         .catch(error => {
             const permissionError = new FirestorePermissionError({
