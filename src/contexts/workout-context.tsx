@@ -25,7 +25,6 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [workoutLoading, setWorkoutLoading] = useState(true);
 
   useEffect(() => {
-    // Aguarda a autenticação e o firestore estarem prontos
     if (authLoading || !firestore || !loggedInInstructorId) {
       if (!authLoading) {
         setWorkoutLoading(false);
@@ -41,17 +40,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         const docSnap = await getDoc(workoutDocRef);
 
         if (docSnap.exists()) {
-          // Documento existe, carrega os dados
           setWorkoutData(docSnap.data().schedule as WorkoutData);
         } else {
-          // Documento não existe, cria com os dados iniciais e atualiza o estado local
           await setDoc(workoutDocRef, { schedule: initialWorkoutData });
           setWorkoutData(initialWorkoutData);
         }
       } catch (error) {
         console.error("Error checking/creating workout schedule:", error);
-        // Em caso de erro de permissão ou outro, usa os dados locais como fallback
-        // e garante que a interface não fique travada em "loading".
         setWorkoutData(initialWorkoutData);
       } finally {
         setWorkoutLoading(false);
@@ -65,7 +60,6 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
     if (firestore && loggedInInstructorId) {
       const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
-      // setDoc com merge é mais seguro para atualizações parciais, mas aqui estamos salvando o objeto inteiro.
       setDoc(workoutDocRef, { schedule: newSchedule });
     }
   }, [firestore, loggedInInstructorId]);
