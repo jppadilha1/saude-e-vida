@@ -64,16 +64,16 @@ const StudentContext = createContext<StudentContextType | undefined>(
 
 export function StudentProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
   const { loggedInInstructorId, loading: authLoading } = useAuth();
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !loggedInInstructorId) return null;
+    // Só constrói a query se o ID do instrutor estiver disponível
+    if (!firestore || !loggedInInstructorId) return null;
     return query(
       collection(firestore, 'students'),
       where('instructorId', '==', loggedInInstructorId)
     );
-  }, [firestore, user, loggedInInstructorId]);
+  }, [firestore, loggedInInstructorId]);
 
   const { data: studentsData, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
   
@@ -83,9 +83,15 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   const [attendanceLoading, setAttendanceLoading] = useState(true);
 
   useEffect(() => {
-    if (isUserLoading || !user || studentsLoading || !firestore) return;
+    // Aguarda os dados dos alunos e o firestore estarem prontos
+    if (studentsLoading || !firestore || !studentsData) {
+        if (!studentsLoading) {
+            setAttendanceLoading(false);
+        }
+        return;
+    };
 
-    if (!studentsData || studentsData.length === 0) {
+    if (studentsData.length === 0) {
       setAttendanceLoading(false);
       setAttendanceData({});
       return;
@@ -123,7 +129,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     };
 
     fetchAllAttendance();
-  }, [studentsData, studentsLoading, firestore, user, isUserLoading]);
+  }, [studentsData, studentsLoading, firestore]);
 
   const students = useMemo(() => {
     if (!studentsData) return [];
@@ -133,14 +139,14 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     }));
   }, [studentsData, attendanceData]);
 
-  const loading = authLoading || isUserLoading || (!!user && (studentsLoading || attendanceLoading));
+  const loading = authLoading || studentsLoading || attendanceLoading;
 
   const addStudent = (studentData: {
     name: string;
     status: StudentStatus;
     paymentStatus: PaymentStatus;
   }) => {
-    if (!firestore || !user || !loggedInInstructorId) return;
+    if (!firestore || !loggedInInstructorId) return;
     const studentsCollection = collection(firestore, 'students');
     addDocumentNonBlocking(studentsCollection, {
       ...studentData,
@@ -154,7 +160,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
     updatedData: Partial<Omit<Student, 'id'>>,
     originalStudent: Student
   ) => {
-    if (!firestore || !user) return;
+    if (!firestore) return;
     const studentDocRef = doc(firestore, 'students', studentId);
     updateDocumentNonBlocking(studentDocRef, updatedData);
 
@@ -168,13 +174,13 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteStudent = (studentId: string) => {
-    if (!firestore || !user) return;
+    if (!firestore) return;
     const studentDocRef = doc(firestore, 'students', studentId);
     deleteDocumentNonBlocking(studentDocRef);
   };
 
   const markAttendance = (studentId: string, present: boolean) => {
-    if (!firestore || !user) return;
+    if (!firestore) return;
     const today = formatISO(new Date(), { representation: 'date' });
     const attendanceRef = collection(firestore, 'students', studentId, 'attendance');
     const q = query(
@@ -217,7 +223,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   };
 
   const resetAllPayments = async () => {
-    if (!firestore || !user || !studentsQuery) return;
+    if (!firestore || !studentsQuery) return;
     const batch = writeBatch(firestore);
     try {
         const querySnapshot = await getDocs(studentsQuery);
@@ -235,7 +241,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   };
 
     const getStudentAttendance = async (studentId: string): Promise<Attendance[]> => {
-    if (!firestore || !user) return [];
+    if (!firestore) return [];
     const attendanceRef = collection(
       firestore,
       'students',
@@ -258,7 +264,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   };
 
   const getStudentPayments = async (studentId: string): Promise<Payment[]> => {
-    if (!firestore || !user) return [];
+    if (!firestore) return [];
     const paymentsRef = collection(firestore, 'students', studentId, 'payments');
     const q = query(paymentsRef, orderBy('paymentDate', 'desc'));
     try {
