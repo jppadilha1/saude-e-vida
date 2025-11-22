@@ -171,7 +171,7 @@
         "email"
       ]
     },
-     "Workout": {
+    "Workout": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Workout",
       "description": "Represents the weekly workout schedule for a single instructor.",
@@ -191,7 +191,9 @@
           }
         }
       },
-      "required": ["schedule"]
+      "required": [
+        "schedule"
+      ]
     }
   },
   "auth": {
@@ -225,7 +227,9 @@
       "description": "Stores instructor data. Writable only by admins."
     },
     "/workoutSchedules/{instructorId}": {
-      "schema": { "$ref": "#/entities/Workout" },
+      "schema": {
+        "$ref": "#/entities/Workout"
+      },
       "description": "Stores the weekly workout schedule for each instructor. The document ID is the instructor's UID."
     }
   }

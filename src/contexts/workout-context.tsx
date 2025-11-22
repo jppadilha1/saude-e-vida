@@ -34,19 +34,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // O caminho agora é 'workouts'
-    const workoutDocRef = doc(firestore, 'workouts', loggedInInstructorId);
+    const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
 
-    // Usamos onSnapshot para escutar em tempo real.
-    // Ele lida com a criação do documento se não existir.
     const unsubscribe = onSnapshot(workoutDocRef, 
       (snapshot) => {
         if (snapshot.exists()) {
-          // Documento existe, carregamos os dados.
           setWorkoutData(snapshot.data().schedule as WorkoutData);
         } else {
-          // Documento não existe. Criamos ele.
-          // A regra "allow write" permitirá isso.
           setDoc(workoutDocRef, { schedule: initialWorkoutData })
             .then(() => {
               setWorkoutData(initialWorkoutData);
@@ -63,7 +57,6 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         setWorkoutLoading(false);
       }, 
       (error) => {
-        // Erro ao tentar escutar o documento.
         const permissionError = new FirestorePermissionError({
             path: workoutDocRef.path,
             operation: 'get',
@@ -74,7 +67,6 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
-      // Limpa a escuta quando o componente é desmontado.
       unsubscribe();
     };
 
@@ -82,8 +74,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
   const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
     if (firestore && loggedInInstructorId) {
-      const workoutDocRef = doc(firestore, 'workouts', loggedInInstructorId);
-      // A regra `allow write` protegerá esta operação
+      const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
       setDoc(workoutDocRef, { schedule: newSchedule }, { merge: true })
         .catch(error => {
             const permissionError = new FirestorePermissionError({

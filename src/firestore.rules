@@ -20,7 +20,7 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    match /workouts/{instructorId} {
+    match /workoutSchedules/{instructorId} {
       // O instrutor pode ler e escrever (criar, atualizar, deletar) apenas na sua própria agenda.
       // O administrador também tem acesso total.
       allow read, write: if request.auth.uid == instructorId || isAdmin();
