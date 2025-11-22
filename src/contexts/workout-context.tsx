@@ -27,6 +27,9 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Aguarda a autenticação e o firestore estarem prontos
     if (authLoading || !firestore || !loggedInInstructorId) {
+      if (!authLoading) {
+        setWorkoutLoading(false);
+      }
       return;
     }
 
@@ -41,13 +44,14 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           // Documento existe, carrega os dados
           setWorkoutData(docSnap.data().schedule as WorkoutData);
         } else {
-          // Documento não existe, cria com os dados iniciais
+          // Documento não existe, cria com os dados iniciais e atualiza o estado local
           await setDoc(workoutDocRef, { schedule: initialWorkoutData });
           setWorkoutData(initialWorkoutData);
         }
       } catch (error) {
         console.error("Error checking/creating workout schedule:", error);
-        // Em caso de erro, usa os dados locais como fallback
+        // Em caso de erro de permissão ou outro, usa os dados locais como fallback
+        // e garante que a interface não fique travada em "loading".
         setWorkoutData(initialWorkoutData);
       } finally {
         setWorkoutLoading(false);
@@ -61,67 +65,81 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const updateFirestoreSchedule = useCallback((newSchedule: WorkoutData) => {
     if (firestore && loggedInInstructorId) {
       const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
+      // setDoc com merge é mais seguro para atualizações parciais, mas aqui estamos salvando o objeto inteiro.
       setDoc(workoutDocRef, { schedule: newSchedule });
     }
   }, [firestore, loggedInInstructorId]);
 
   const syncWorkoutData = useCallback((studentNames: Set<string>) => {
-    const currentSchedule = workoutData;
-    const newData = JSON.parse(JSON.stringify(currentSchedule));
-    let hasChanged = false;
-    
-    for (const day in newData) {
-      for (const time in newData[day]) {
-        const originalLength = newData[day][time].length;
-        newData[day][time] = newData[day][time].filter((name: string) => studentNames.has(name));
-        if (newData[day][time].length !== originalLength) {
-          hasChanged = true;
+    setWorkoutData(currentSchedule => {
+        const newData = JSON.parse(JSON.stringify(currentSchedule));
+        let hasChanged = false;
+        
+        for (const day in newData) {
+        for (const time in newData[day]) {
+            const originalLength = newData[day][time].length;
+            newData[day][time] = newData[day][time].filter((name: string) => studentNames.has(name));
+            if (newData[day][time].length !== originalLength) {
+            hasChanged = true;
+            }
         }
-      }
-    }
-    
-    if (hasChanged) {
-      setWorkoutData(newData);
-      updateFirestoreSchedule(newData);
-    }
-  }, [workoutData, updateFirestoreSchedule]);
+        }
+        
+        if (hasChanged) {
+            updateFirestoreSchedule(newData);
+            return newData;
+        }
+        return currentSchedule;
+    });
+  }, [updateFirestoreSchedule]);
 
   const toggleStudentWorkout = (studentName: string, day: string, time: string, add: boolean): boolean => {
-    const newSchedule = JSON.parse(JSON.stringify(workoutData));
-    
-    if (add) {
-      const studentsInSlot = newSchedule[day]?.[time] || [];
-      if (studentsInSlot.length >= 2) {
-        return false; 
-      }
-      if (!newSchedule[day]) newSchedule[day] = {};
-      if (!newSchedule[day][time]) newSchedule[day][time] = [];
-      
-      if (!newSchedule[day][time].includes(studentName)) {
-        newSchedule[day][time] = [...newSchedule[day][time], studentName];
-      }
-    } else {
-      if (newSchedule[day]?.[time]?.includes(studentName)) {
-        newSchedule[day][time] = newSchedule[day][time].filter((name:string) => name !== studentName);
-      }
-    }
-    setWorkoutData(newSchedule);
-    updateFirestoreSchedule(newSchedule);
-    return true;
+    let success = true;
+    setWorkoutData(currentSchedule => {
+        const newSchedule = JSON.parse(JSON.stringify(currentSchedule));
+        
+        if (add) {
+            const studentsInSlot = newSchedule[day]?.[time] || [];
+            if (studentsInSlot.length >= 2) {
+                success = false; 
+                return currentSchedule;
+            }
+            if (!newSchedule[day]) newSchedule[day] = {};
+            if (!newSchedule[day][time]) newSchedule[day][time] = [];
+            
+            if (!newSchedule[day][time].includes(studentName)) {
+                newSchedule[day][time].push(studentName);
+            }
+        } else {
+            if (newSchedule[day]?.[time]?.includes(studentName)) {
+                newSchedule[day][time] = newSchedule[day][time].filter((name:string) => name !== studentName);
+            }
+        }
+        updateFirestoreSchedule(newSchedule);
+        return newSchedule;
+    });
+    return success;
   };
 
   const removeStudentFromSchedule = (studentName: string) => {
-    const newData = JSON.parse(JSON.stringify(workoutData));
-    for (const day in newData) {
-      for (const time in newData[day]) {
-        const index = newData[day][time].indexOf(studentName);
-        if (index > -1) {
-          newData[day][time].splice(index, 1);
+    setWorkoutData(currentSchedule => {
+        const newData = JSON.parse(JSON.stringify(currentSchedule));
+        let hasChanged = false;
+        for (const day in newData) {
+        for (const time in newData[day]) {
+            const index = newData[day][time].indexOf(studentName);
+            if (index > -1) {
+            newData[day][time].splice(index, 1);
+            hasChanged = true;
+            }
         }
-      }
-    }
-    setWorkoutData(newData);
-    updateFirestoreSchedule(newData);
+        }
+        if (hasChanged) {
+            updateFirestoreSchedule(newData);
+            return newData;
+        }
+        return currentSchedule;
+    });
   };
 
   const loading = authLoading || workoutLoading;
