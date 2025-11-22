@@ -11,6 +11,7 @@ import {
   useCollection,
   useMemoFirebase,
   useUser,
+  useAuth as useFirebaseAuth,
 } from '@/firebase';
 import {
   collection,
@@ -19,13 +20,10 @@ import {
   getDocs,
   where,
   query,
+  setDoc,
+  deleteDoc,
 } from 'firebase/firestore';
-import {
-  addDocumentNonBlocking,
-  updateDocumentNonBlocking,
-  deleteDocumentNonBlocking,
-} from '@/firebase/non-blocking-updates';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import type { Instructor } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -50,11 +48,13 @@ const InstructorContext = createContext<InstructorContextType | undefined>(
 
 export function InstructorProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
+  const firebaseAuth = useFirebaseAuth();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const instructorsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // O admin pode listar todos os instrutores
     return collection(firestore, 'instructors');
   }, [firestore, user]);
 
@@ -67,36 +67,43 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
       email: string;
       password?: string;
     }) => {
-      if (!firestore) throw new Error('Firestore not available');
-
-      const functions = getFunctions();
-      const createInstructorAccount = httpsCallable(
-        functions,
-        'createInstructorAccount'
-      );
+      if (!firestore || !firebaseAuth) throw new Error('Serviços do Firebase indisponíveis');
+      if (!instructorData.password) throw new Error('A senha é obrigatória');
 
       try {
-        await createInstructorAccount({
-          email: instructorData.email,
-          password: instructorData.password,
+        // Cria o usuário no Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(
+          firebaseAuth,
+          instructorData.email,
+          instructorData.password
+        );
+        const newInstructorUID = userCredential.user.uid;
+
+        // Cria o documento do instrutor no Firestore
+        const instructorDocRef = doc(firestore, 'instructors', newInstructorUID);
+        await setDoc(instructorDocRef, {
+          id: newInstructorUID,
           name: instructorData.name,
+          email: instructorData.email,
         });
 
-        // A função de nuvem agora lida com a criação do usuário e do documento.
-        // O useCollection atualizará a lista automaticamente.
-      } catch (error) {
-        console.error('Error creating instructor:', error);
-        throw error;
+      } catch (error: any) {
+        console.error('Erro ao criar instrutor:', error);
+        if (error.code === 'auth/email-already-in-use') {
+          throw new Error('Este email já está em uso.');
+        }
+        throw new Error('Erro desconhecido ao criar conta.');
       }
     },
-    [firestore]
+    [firestore, firebaseAuth]
   );
 
   const updateInstructor = useCallback(
     async (instructorId: string, updatedData: Partial<Instructor>) => {
       if (!firestore) return;
       const instructorDocRef = doc(firestore, 'instructors', instructorId);
-      updateDocumentNonBlocking(instructorDocRef, updatedData);
+      // Usando setDoc com merge para garantir a atualização
+      await setDoc(instructorDocRef, updatedData, { merge: true });
     },
     [firestore]
   );
@@ -105,35 +112,39 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
     async (instructorId: string) => {
       if (!firestore) return;
 
-      const functions = getFunctions();
-      const deleteInstructorAccount = httpsCallable(
-        functions,
-        'deleteInstructorAccount'
-      );
+      // ATENÇÃO: O SDK do cliente não pode excluir usuários do Auth.
+      // Esta ação deve ser feita manualmente no console do Firebase
+      // ou com uma Cloud Function separada e segura.
+      // Aqui, vamos focar em limpar os dados do Firestore.
 
       try {
-        // Chama a função de nuvem para excluir o usuário do Auth
-        await deleteInstructorAccount({ uid: instructorId });
+        const batch = writeBatch(firestore);
 
-        // Exclui o documento do instrutor no Firestore
+        // 1. Deletar o documento do instrutor
         const instructorDocRef = doc(firestore, 'instructors', instructorId);
-        await deleteDocumentNonBlocking(instructorDocRef);
+        batch.delete(instructorDocRef);
 
-        // Exclui os alunos associados a este instrutor
+        // 2. Encontrar e deletar os alunos associados
         const studentsRef = collection(firestore, 'students');
         const q = query(studentsRef, where('instructorId', '==', instructorId));
         const studentDocs = await getDocs(q);
-        const batch = writeBatch(firestore);
-        studentDocs.forEach((doc) => {
-          batch.delete(doc.ref);
+        studentDocs.forEach((studentDoc) => {
+          batch.delete(studentDoc.ref);
         });
+
         await batch.commit();
+
+        toast({
+          title: 'Dados do Instrutor Removidos',
+          description: 'O instrutor e seus alunos foram removidos do Firestore. A conta de autenticação precisa ser removida manualmente.',
+        });
+
       } catch (error) {
-        console.error("Error deleting instructor and their students:", error);
+        console.error("Erro ao deletar dados do instrutor:", error);
         throw error;
       }
     },
-    [firestore]
+    [firestore, toast]
   );
 
   const loading = isUserLoading || instructorsLoading;
