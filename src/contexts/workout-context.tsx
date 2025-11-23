@@ -89,6 +89,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
   const syncWorkoutData = useCallback((studentNames: Set<string>) => {
     setWorkoutData(currentSchedule => {
+        // Adiciona a verificação de segurança aqui
+        if (!currentSchedule) {
+            return currentSchedule;
+        }
+
         const newData = JSON.parse(JSON.stringify(currentSchedule));
         let hasChanged = false;
         
@@ -113,6 +118,10 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const toggleStudentWorkout = (studentName: string, day: string, time: string, add: boolean): boolean => {
     let success = true;
     setWorkoutData(currentSchedule => {
+        if (!currentSchedule) {
+            success = false;
+            return currentSchedule;
+        }
         const newSchedule = JSON.parse(JSON.stringify(currentSchedule));
         
         if (add) {
@@ -140,6 +149,9 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
   const removeStudentFromSchedule = (studentName: string) => {
     setWorkoutData(currentSchedule => {
+        if (!currentSchedule) {
+            return currentSchedule;
+        }
         const newData = JSON.parse(JSON.stringify(currentSchedule));
         let hasChanged = false;
         for (const day in newData) {
