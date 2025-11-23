@@ -3,9 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper function to check if a user is an admin by reading their document in the 'users' collection.
+    // This function is illustrative, as the isAdmin logic now resides in the app's state.
     function isAdmin() {
-      // Allow if the user's document in the 'users' collection has isAdmin set to true.
-      // Ensure the user is authenticated before trying to read the document.
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
@@ -15,24 +14,24 @@ service cloud.firestore {
     }
 
     // Rule for the 'users' collection
+    // This is opened up for the proof-of-concept manual authentication system.
+    // In a production app, this would need to be more secure.
     match /users/{userId} {
-      // Admins can read, write, create, and delete any user document.
-      // A non-admin user can only read their own document.
-      allow read: if isAdmin() || request.auth.uid == userId;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // Rule for the students collection
+    // An instructor can only read or write a student document
+    // if the 'instructorId' in the document matches the authenticated instructor's UID.
+    // An administrator also has full access.
+    // NOTE: This rule will only work once the manual auth state is established in the app.
     match /students/{studentId} {
-      // An instructor can only read or write a student document
-      // if the 'instructorId' in the document matches the authenticated instructor's UID.
-      // An administrator (isAdmin) also has full access.
-      allow read, write: if request.auth.uid == resource.data.instructorId || isAdmin();
+      allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.instructorId == resource.data.instructorId || isAdmin();
     }
 
     // Rule for a student's subcollections (attendance, payments)
+    // Allows access to subcollections if the user is the student's instructor or an admin.
     match /students/{studentId}/{document=**} {
-      // Allows access to subcollections if the user is the student's instructor or an admin.
       allow read, write: if get(/databases/$(database)/documents/students/$(studentId)).data.instructorId == request.auth.uid || isAdmin();
     }
     
@@ -43,9 +42,9 @@ service cloud.firestore {
     }
 
     // Rule for the workout schedules collection
+    // The instructor can read and write only to their own schedule.
+    // The administrator also has full access.
     match /workoutSchedules/{instructorId} {
-      // The instructor can read and write only to their own schedule.
-      // The administrator also has full access.
       allow read, write: if request.auth.uid == instructorId || isAdmin();
     }
   }
