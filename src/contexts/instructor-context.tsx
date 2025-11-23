@@ -86,6 +86,7 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
             name: instructorData.name,
             email: instructorData.email,
             isAdmin: false, // Instructors are not admins
+            password: instructorData.password, // Storing for PoC
         };
         await setDoc(userDocRef, userProfile);
 

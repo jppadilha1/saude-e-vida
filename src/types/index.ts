@@ -50,6 +50,7 @@ export type UserProfile = {
     name: string;
     email: string;
     isAdmin: boolean;
+    password?: string; // Stored for PoC only. NOT SAFE FOR PRODUCTION.
 }
 
 

@@ -167,6 +167,10 @@
         "isAdmin": {
           "type": "boolean",
           "description": "Flag to determine if the user has administrator privileges."
+        },
+        "password": {
+          "type": "string",
+          "description": "The user's password (for proof of concept only)."
         }
       },
       "required": [

@@ -74,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: 'Admin',
             email: adminUser.email!,
             isAdmin: true,
+            password: password, // Storing for PoC
           };
           await setDoc(userDocRef, adminProfile);
           return true;
