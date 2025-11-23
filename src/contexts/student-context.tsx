@@ -14,7 +14,6 @@ import {
   useFirestore,
   useCollection,
   useMemoFirebase,
-  useUser,
 } from '@/firebase';
 import {
   collection,
@@ -64,10 +63,10 @@ const StudentContext = createContext<StudentContextType | undefined>(
 
 export function StudentProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
+  // Usa o loggedInInstructorId do nosso auth-context manual
   const { loggedInInstructorId, loading: authLoading } = useAuth();
 
   const studentsQuery = useMemoFirebase(() => {
-    // Só constrói a query se o ID do instrutor estiver disponível
     if (!firestore || !loggedInInstructorId) return null;
     return query(
       collection(firestore, 'students'),
@@ -83,7 +82,6 @@ export function StudentProvider({ children }: { children: ReactNode }) {
   const [attendanceLoading, setAttendanceLoading] = useState(true);
 
   useEffect(() => {
-    // Aguarda os dados dos alunos e o firestore estarem prontos
     if (studentsLoading || !firestore || !studentsData) {
         if (!studentsLoading) {
             setAttendanceLoading(false);
@@ -115,11 +113,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
               (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
             );
           } catch (error) {
-            const permissionError = new FirestorePermissionError({
-              path: attendanceRef.path,
-              operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            console.error(`Falha ao buscar presenças para o aluno ${student.id}:`, error);
           }
         })
       );
@@ -201,11 +195,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         updateDocumentNonBlocking(docToUpdate, data);
       }
     }).catch(error => {
-        const permissionError = new FirestorePermissionError({
-            path: q.toString(),
-            operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Erro ao marcar presença:", error);
     });
 
     setAttendanceData(prev => {
@@ -232,11 +222,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         });
         await batch.commit();
     } catch(e) {
-        const permissionError = new FirestorePermissionError({
-            path: studentsQuery.toString(),
-            operation: 'write',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+       console.error("Erro ao resetar mensalidades:", e);
     }
   };
 
@@ -254,11 +240,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
           (doc) => ({ id: doc.id, ...doc.data() } as Attendance)
         );
     } catch (e) {
-        const permissionError = new FirestorePermissionError({
-            path: attendanceRef.path,
-            operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Erro ao buscar histórico de presença:", e);
         return [];
     }
   };
@@ -273,12 +255,8 @@ export function StudentProvider({ children }: { children: ReactNode }) {
         (doc) => ({ id: doc.id, ...doc.data() } as Payment)
       );
     } catch (e) {
-      const permissionError = new FirestorePermissionError({
-        path: paymentsRef.path,
-        operation: 'list',
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      return [];
+        console.error("Erro ao buscar histórico de pagamentos:", e);
+        return [];
     }
   };
 

@@ -5,9 +5,7 @@ import { initialWorkoutData } from '@/lib/workout-data';
 import type { WorkoutData } from '@/types';
 import { useAuth } from './auth-context';
 import { useFirestore } from '@/firebase';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 
 interface WorkoutContextType {
   workoutData: WorkoutData;
@@ -21,6 +19,7 @@ const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 export function WorkoutProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
+  // Usa o ID do nosso contexto de autenticação manual
   const { loggedInInstructorId, loading: authLoading } = useAuth();
   
   const [workoutData, setWorkoutData] = useState<WorkoutData>(initialWorkoutData);
@@ -41,27 +40,19 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         if (snapshot.exists()) {
           setWorkoutData(snapshot.data().schedule as WorkoutData);
         } else {
+          // Se o documento não existe, cria um novo com os dados iniciais
           setDoc(workoutDocRef, { schedule: initialWorkoutData })
             .then(() => {
               setWorkoutData(initialWorkoutData);
             })
             .catch(error => {
-              const permissionError = new FirestorePermissionError({
-                  path: workoutDocRef.path,
-                  operation: 'create',
-                  requestResourceData: { schedule: initialWorkoutData }
-              });
-              errorEmitter.emit('permission-error', permissionError);
+              console.error("Erro ao criar documento de agenda:", error);
             });
         }
         setWorkoutLoading(false);
       }, 
       (error) => {
-        const permissionError = new FirestorePermissionError({
-            path: workoutDocRef.path,
-            operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Erro ao escutar documento de agenda:", error);
         setWorkoutLoading(false);
       }
     );
@@ -77,19 +68,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       const workoutDocRef = doc(firestore, 'workoutSchedules', loggedInInstructorId);
       setDoc(workoutDocRef, { schedule: newSchedule }, { merge: true })
         .catch(error => {
-            const permissionError = new FirestorePermissionError({
-                path: workoutDocRef.path,
-                operation: 'update',
-                requestResourceData: { schedule: newSchedule }
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            console.error("Erro ao atualizar agenda no Firestore:", error);
         });
     }
   }, [firestore, loggedInInstructorId]);
 
   const syncWorkoutData = useCallback((studentNames: Set<string>) => {
     setWorkoutData(currentSchedule => {
-        // Adiciona a verificação de segurança aqui
         if (!currentSchedule) {
             return currentSchedule;
         }

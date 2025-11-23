@@ -10,7 +10,6 @@ import {
   useFirestore,
   useCollection,
   useMemoFirebase,
-  useAuth as useFirebaseClientAuth, // Renomeado para evitar conflito
 } from '@/firebase';
 import {
   collection,
@@ -48,12 +47,12 @@ const InstructorContext = createContext<InstructorContextType | undefined>(
 
 export function InstructorProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
-  const { user, loading: authLoading } = useAuth(); // Usando nosso auth context manual
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
+  // A query busca todos os usuários que não são administradores
   const instructorsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    // Query the 'users' collection for non-admin users
+    if (!firestore || !user?.isAdmin) return null; // Apenas admins podem listar instrutores
     return query(collection(firestore, 'users'), where('isAdmin', '==', false));
   }, [firestore, user]);
 
@@ -69,21 +68,22 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
       if (!firestore) throw new Error('Serviços do Firebase indisponíveis');
       if (!instructorData.password) throw new Error('A senha é obrigatória');
 
-      try {
-        // Apenas cria o documento do instrutor no Firestore.
-        // A autenticação agora é manual.
-        const userProfile: Omit<UserProfile, 'id'> = {
-            name: instructorData.name,
-            email: instructorData.email,
-            isAdmin: false, // Instructors are not admins
-            password: instructorData.password,
-        };
-        await addDoc(collection(firestore, 'users'), userProfile);
-
-      } catch (error: any) {
-        console.error('Erro ao criar instrutor:', error);
-        throw new Error('Erro desconhecido ao criar conta.');
+      // Verifica se já existe um usuário com este email
+      const usersRef = collection(firestore, 'users');
+      const q = query(usersRef, where('email', '==', instructorData.email));
+      const existingUserSnapshot = await getDocs(q);
+      if (!existingUserSnapshot.empty) {
+        throw new Error('Este email já está em uso.');
       }
+
+      // Apenas cria o documento do instrutor no Firestore.
+      const userProfile: Omit<UserProfile, 'id'> = {
+          name: instructorData.name,
+          email: instructorData.email,
+          isAdmin: false, // Instrutores não são admins
+          password: instructorData.password,
+      };
+      await addDoc(collection(firestore, 'users'), userProfile);
     },
     [firestore]
   );
@@ -91,8 +91,10 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
   const updateInstructor = useCallback(
     async (instructorId: string, updatedData: Partial<UserProfile>) => {
       if (!firestore) return;
+      // Não permite a edição do email ou da senha por este método
+      const { email, password, ...safeUpdateData } = updatedData;
       const userDocRef = doc(firestore, 'users', instructorId);
-      await setDoc(userDocRef, updatedData, { merge: true });
+      await setDoc(userDocRef, safeUpdateData, { merge: true });
     },
     [firestore]
   );
@@ -104,9 +106,11 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
       try {
         const batch = writeBatch(firestore);
 
+        // Deleta o documento do usuário
         const userDocRef = doc(firestore, 'users', instructorId);
         batch.delete(userDocRef);
 
+        // Deleta os alunos associados
         const studentsRef = collection(firestore, 'students');
         const q = query(studentsRef, where('instructorId', '==', instructorId));
         const studentDocs = await getDocs(q);
@@ -114,18 +118,19 @@ export function InstructorProvider({ children }: { children: ReactNode }) {
           batch.delete(studentDoc.ref);
         });
         
+        // Deleta a agenda de treinos associada
         const workoutDocRef = doc(firestore, 'workoutSchedules', instructorId);
         batch.delete(workoutDocRef);
 
         await batch.commit();
 
-        toast({
-          title: 'Instrutor Removido',
-          description: 'O instrutor e seus dados associados foram removidos do sistema.',
-        });
-
       } catch (error) {
         console.error("Erro ao deletar dados do instrutor:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao Excluir',
+            description: 'Não foi possível remover todos os dados associados ao instrutor.'
+        });
         throw error;
       }
     },

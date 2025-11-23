@@ -65,7 +65,8 @@ export function StudentDialog({
   const { addStudent, updateStudent, getStudentPayments } = useStudent();
   const { toast } = useToast();
   const isEditing = !!student;
-  const { user } = useAuth(); // Usando o usuário do contexto de autenticação
+  // Pega o usuário do nosso contexto de autenticação manual
+  const { userProfile } = useAuth(); 
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoadingPayments, setIsLoadingPayments] = useState(false);
@@ -144,7 +145,7 @@ export function StudentDialog({
             <FormItem>
               <FormLabel>Instrutor</FormLabel>
               <Input
-                value={user?.name || user?.email || ''}
+                value={userProfile?.name || userProfile?.email || ''}
                 disabled
               />
             </FormItem>
