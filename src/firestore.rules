@@ -2,44 +2,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is an admin by reading their document in the 'users' collection.
-    // NOTE: With manual authentication, this check is primarily done on the client.
-    // This server-side function is illustrative and not reliably used for client-side queries without auth context.
-    function isAdmin(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.isAdmin == true;
-    }
-
     // Rule for the 'users' collection
     // This is opened up for the proof-of-concept manual authentication system.
-    // In a production app with server-side logic, this would need to be more secure.
+    // In a production app, this would need to be more secure, likely using
+    // server-side logic (like Cloud Functions) to validate admin actions.
     match /users/{userId} {
-      allow read, write: if true;
+      // Allows reading the user list (for admins), creating new users (for admins),
+      // and deleting users (the admin check is done in client-side code).
+      // Update is restricted as a safety measure.
+      allow read, create, delete: if true;
+      allow update: if false; // Disallow updates from client as a precaution
     }
 
-    // Rule for the students collection
-    // An instructor can only read or write a student document
-    // if the 'instructorId' in the document matches the authenticated instructor's UID.
-    // An administrator also has full access.
-    // NOTE: This rule will not work as intended with a pure manual auth system from the client,
-    // as request.auth is null. It's simplified for the PoC.
+    // Rules for student-related collections
+    // Open for the PoC, as authorization is handled client-side.
     match /students/{studentId} {
        allow read, write: if true;
     }
 
-    // Rule for a student's subcollections (attendance, payments)
-    // Allows access to subcollections if the user is the student's instructor or an admin.
     match /students/{studentId}/{document=**} {
        allow read, write: if true;
     }
     
-    // This collection is no longer used, but keeping the rule for safety.
-    match /instructors/{instructorId} {
-       allow read, write: if false; // Block all access
-    }
-
-    // Rule for the workout schedules collection
-    // The instructor can read and write only to their own schedule.
-    // The administrator also has full access.
+    // Rule for workout schedules
+    // Open for the PoC.
      match /workoutSchedules/{instructorId} {
       allow read, write: if true;
     }
