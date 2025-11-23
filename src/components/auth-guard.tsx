@@ -57,11 +57,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   // Se não for rota de admin e não for admin, renderiza com os providers.
   // A verificação !auth.loading garante que os providers só renderizem com o user disponível.
   if (!pathname.startsWith('/admin') && !auth.isAdmin && !auth.loading) {
-    return (
-      <StudentProvider>
-        <WorkoutProvider>{children}</WorkoutProvider>
-      </StudentProvider>
-    );
+    // O WorkoutProvider foi removido daqui e movido para sua página específica
+    return <StudentProvider>{children}</StudentProvider>;
   }
 
   // Renderiza um loader como fallback enquanto o redirecionamento do useEffect acontece
