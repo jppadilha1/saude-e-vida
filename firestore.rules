@@ -2,42 +2,51 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regra para a coleção de alunos
+    // Helper function to check if a user is an admin by reading their document in the 'users' collection.
+    function isAdmin() {
+      // Allow if the user's document in the 'users' collection has isAdmin set to true.
+      // Ensure the user is authenticated before trying to read the document.
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Helper function to check if the user is authenticated.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Rule for the 'users' collection
+    match /users/{userId} {
+      // Admins can read, write, create, and delete any user document.
+      // A non-admin user can only read their own document.
+      allow read: if isAdmin() || request.auth.uid == userId;
+      allow write: if isAdmin();
+    }
+
+    // Rule for the students collection
     match /students/{studentId} {
-      // Um instrutor só pode ler ou escrever em um documento de aluno
-      // se o 'instructorId' no documento for igual ao UID do instrutor autenticado.
-      // Um administrador (isAdmin) também tem acesso total.
+      // An instructor can only read or write a student document
+      // if the 'instructorId' in the document matches the authenticated instructor's UID.
+      // An administrator (isAdmin) also has full access.
       allow read, write: if request.auth.uid == resource.data.instructorId || isAdmin();
     }
 
-    // Regra para as subcoleções de um aluno (presença, pagamentos)
+    // Rule for a student's subcollections (attendance, payments)
     match /students/{studentId}/{document=**} {
-      // Permite o acesso a subcoleções se o usuário for o instrutor do aluno ou um administrador.
+      // Allows access to subcollections if the user is the student's instructor or an admin.
       allow read, write: if get(/databases/$(database)/documents/students/$(studentId)).data.instructorId == request.auth.uid || isAdmin();
     }
     
-    // Regra para a coleção de instrutores
+    // This collection is no longer used, but keeping the rule for safety.
+    // It is replaced by the 'users' collection.
     match /instructors/{instructorId} {
-      // Qualquer usuário autenticado pode ver a lista de instrutores.
-      allow get, list: if isSignedIn();
-      // Apenas um administrador pode criar, atualizar ou excluir um instrutor.
-      allow create, update, delete: if isAdmin();
+       allow read, write: if false; // Block all access
     }
 
+    // Rule for the workout schedules collection
     match /workoutSchedules/{instructorId} {
-      // O instrutor pode ler e escrever apenas na sua própria agenda.
-      // O administrador também tem acesso total.
+      // The instructor can read and write only to their own schedule.
+      // The administrator also has full access.
       allow read, write: if request.auth.uid == instructorId || isAdmin();
     }
-  }
-
-  // Função auxiliar para verificar se o usuário está autenticado.
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  // Função auxiliar para verificar se o usuário é o administrador.
-  function isAdmin() {
-    return request.auth != null && request.auth.token.email == "adm@gmail.com";
   }
 }

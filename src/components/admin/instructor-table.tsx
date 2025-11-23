@@ -1,6 +1,6 @@
 'use client';
 
-import type { Instructor } from '@/types';
+import type { UserProfile } from '@/types'; // Changed from Instructor to UserProfile
 import {
   Table,
   TableBody,
@@ -31,8 +31,8 @@ import {
 import { MoreHorizontal } from 'lucide-react';
 
 type InstructorTableProps = {
-  instructors: Instructor[];
-  onEdit: (instructor: Instructor) => void;
+  instructors: UserProfile[]; // Changed from Instructor to UserProfile
+  onEdit: (instructor: UserProfile) => void;
   onDelete: (instructorId: string, instructorName: string) => void;
 };
 
@@ -41,10 +41,6 @@ export default function InstructorTable({
   onEdit,
   onDelete,
 }: InstructorTableProps) {
-  // A conta admin agora pode ser editada, mas não excluída se for o único admin.
-  // A lógica de exclusão é tratada no componente pai.
-  // Apenas garantimos que o botão de excluir seja desabilitado para o próprio admin.
-
   return (
     <div className="rounded-lg border">
       <Table>
@@ -75,13 +71,11 @@ export default function InstructorTable({
                         <DropdownMenuItem onClick={() => onEdit(instructor)}>
                           Editar
                         </DropdownMenuItem>
-                        {instructor.email.toLowerCase() !== 'adm@gmail.com' && (
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-red-600 focus:text-red-600">
-                              Excluir
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                        )}
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem className="text-red-600 focus:text-red-600">
+                            Excluir
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     <AlertDialogContent>
@@ -89,7 +83,7 @@ export default function InstructorTable({
                         <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                         <AlertDialogDescription>
                           Essa ação não pode ser desfeita. Isso irá excluir
-                          permanentemente o instrutor "{instructor.name}".
+                          permanentemente o instrutor "{instructor.name}" e todos os seus dados associados.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

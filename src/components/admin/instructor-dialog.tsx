@@ -23,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useInstructor } from '@/contexts/instructor-context';
-import type { Instructor } from '@/types';
+import type { UserProfile } from '@/types'; // Changed from Instructor to UserProfile
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -42,7 +42,7 @@ const instructorSchema = z.object({
 interface InstructorDialogProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  instructor: Instructor | null;
+  instructor: UserProfile | null; // Changed from Instructor to UserProfile
 }
 
 export function InstructorDialog({
@@ -85,7 +85,7 @@ export function InstructorDialog({
 
   const onSubmit = async (data: z.infer<typeof instructorSchema>) => {
     if (isEditing && instructor) {
-      const updatedData: Partial<Instructor> = {
+      const updatedData: Partial<UserProfile> = {
         name: data.name,
         // Email is not editable to avoid auth mismatches
       };

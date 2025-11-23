@@ -7,16 +7,19 @@ import React, {
   useEffect,
   type ReactNode,
 } from 'react';
-import { useAuth as useFirebaseAuth, useUser } from '@/firebase';
+import { useAuth as useFirebaseAuth, useUser as useFirebaseUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   type User,
 } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import type { UserProfile } from '@/types';
 
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -29,52 +32,60 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const firebaseAuth = useFirebaseAuth();
-  const { user, isUserLoading: isFirebaseUserLoading } = useUser();
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const firestore = useFirestore();
+  const { user, isUserLoading: isFirebaseUserLoading } = useFirebaseUser();
 
-  const isAuthenticated = !!user;
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+  const isAdmin = !!userProfile?.isAdmin;
+  const isAuthenticated = !!user && !!userProfile;
   const loggedInInstructorId = user ? user.uid : null;
 
-  useEffect(() => {
-    if (user && user.email) {
-      setIsAdmin(user.email.toLowerCase() === 'adm@gmail.com');
-    } else {
-      setIsAdmin(false);
-    }
-  }, [user]);
-
   const login = async (email: string, password?: string): Promise<boolean> => {
-    if (!firebaseAuth) {
-      console.error('Firebase auth service not available');
+    if (!firebaseAuth || !firestore) {
+      console.error('Firebase services not available');
       return false;
     }
     try {
       if (!password) throw new Error('Password is required.');
       await signInWithEmailAndPassword(firebaseAuth, email, password);
+      // After login, the useDoc hook will fetch the user profile
       return true;
     } catch (error: any) {
-      // Se o usuário admin não existir, crie-o na primeira vez.
+      // If the admin user does not exist, create it on the first login attempt.
       if (
         (error.code === 'auth/user-not-found' ||
           error.code === 'auth/invalid-credential') &&
         email.toLowerCase() === 'adm@gmail.com'
       ) {
         try {
-          if (!password) throw new Error('Password is required for signup.');
-          await createUserWithEmailAndPassword(firebaseAuth, email, password);
+          if (!password) throw new Error('Password is required for admin setup.');
+          const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+          const adminUser = userCredential.user;
+          // Create the admin profile in Firestore
+          const userDocRef = doc(firestore, 'users', adminUser.uid);
+          const adminProfile: UserProfile = {
+            id: adminUser.uid,
+            name: 'Admin',
+            email: adminUser.email!,
+            isAdmin: true,
+          };
+          await setDoc(userDocRef, adminProfile);
           return true;
         } catch (signUpError) {
-          // Se a criação também falhar, o login falha.
           console.error('Admin account creation failed:', signUpError);
-          throw signUpError; // Relança o erro da criação
+          throw signUpError;
         }
       }
-      // Para todos os outros erros ou outros usuários, relança o erro original.
       console.error('Authentication failed:', error);
       throw error;
     }
   };
-
 
   const logout = () => {
     if (firebaseAuth) {
@@ -82,10 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loading = isFirebaseUserLoading;
+  // The overall loading state depends on both Firebase Auth and Firestore profile loading.
+  const loading = isFirebaseUserLoading || (!!user && isProfileLoading);
 
   const value = {
     user,
+    userProfile,
     isAuthenticated,
     loading,
     login,

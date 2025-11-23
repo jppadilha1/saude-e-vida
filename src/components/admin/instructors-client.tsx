@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Loader2, PlusCircle } from 'lucide-react';
 import InstructorTable from './instructor-table';
 import { InstructorDialog } from './instructor-dialog';
-import type { Instructor } from '@/types';
+import type { UserProfile } from '@/types'; // Changed from Instructor to UserProfile
 import { useToast } from '@/hooks/use-toast';
 
 export default function InstructorsClient() {
   const { instructors, loading, deleteInstructor } = useInstructor();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedInstructor, setSelectedInstructor] = useState<Instructor | null>(
+  const [selectedInstructor, setSelectedInstructor] = useState<UserProfile | null>(
     null
   );
   const { toast } = useToast();
@@ -22,7 +22,7 @@ export default function InstructorsClient() {
     setDialogOpen(true);
   };
 
-  const handleEditInstructor = (instructor: Instructor) => {
+  const handleEditInstructor = (instructor: UserProfile) => {
     setSelectedInstructor(instructor);
     setDialogOpen(true);
   };
@@ -35,7 +35,7 @@ export default function InstructorsClient() {
       await deleteInstructor(instructorId);
       toast({
         title: 'Sucesso',
-        description: `Instrutor "${instructorName}" excluído.`,
+        description: `Instrutor "${instructorName}" excluído do sistema.`,
       });
     } catch (error: any) {
       toast({

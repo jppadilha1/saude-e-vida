@@ -37,11 +37,21 @@ export type Payment = {
   paymentDate: string;
 };
 
+// This type is deprecated and replaced by User, but kept for reference if needed.
 export type Instructor = {
   id: string;
   name: string;
   email: string;
 };
+
+// Represents a user in the 'users' collection in Firestore
+export type UserProfile = {
+    id: string;
+    name: string;
+    email: string;
+    isAdmin: boolean;
+}
+
 
 // Estrutura para os dados de treino no Firestore
 export type WorkoutData = {

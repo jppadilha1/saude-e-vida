@@ -42,12 +42,9 @@ type AppLayoutProps = {
 export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, isAdmin, user } = useAuth();
+  const { logout, isAdmin, userProfile } = useAuth();
 
-  const userName =
-    isAdmin && user?.email?.toLowerCase() === 'adm@gmail.com'
-      ? 'Admin'
-      : user?.displayName || user?.email || 'Usuário';
+  const userName = userProfile?.name || userProfile?.email || 'Usuário';
 
   const handleLogout = () => {
     logout();
@@ -149,7 +146,7 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{userName}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email || 'não autenticado'}
+                    {userProfile?.email || 'não autenticado'}
                   </p>
                 </div>
               </DropdownMenuLabel>

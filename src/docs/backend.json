@@ -12,7 +12,7 @@
         },
         "instructorId": {
           "type": "string",
-          "description": "Reference to the Instructor. (Relationship: Instructor 1:N Student)"
+          "description": "Reference to the Instructor (User). (Relationship: User 1:N Student)"
         },
         "name": {
           "type": "string",
@@ -145,33 +145,38 @@
         "paymentDate"
       ]
     },
-    "Instructor": {
+    "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Instructor",
+      "title": "User",
       "type": "object",
-      "description": "Represents an instructor at the academy.",
+      "description": "Represents a user of the application, who can be an instructor or an administrator.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Instructor entity, matches Firebase Auth UID."
+          "description": "Unique identifier for the User entity, matches Firebase Auth UID."
         },
         "name": {
           "type": "string",
-          "description": "The name of the instructor."
+          "description": "The name of the user."
         },
         "email": {
           "type": "string",
           "format": "email",
-          "description": "The email of the instructor, used for login."
+          "description": "The email of the user, used for login."
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Flag to determine if the user has administrator privileges."
         }
       },
       "required": [
         "id",
         "name",
-        "email"
+        "email",
+        "isAdmin"
       ]
     },
-     "Workout": {
+    "Workout": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Workout",
       "description": "Represents the weekly workout schedule for a single instructor.",
@@ -191,7 +196,9 @@
           }
         }
       },
-      "required": ["schedule"]
+      "required": [
+        "schedule"
+      ]
     }
   },
   "auth": {
@@ -218,14 +225,16 @@
       },
       "description": "Stores payment history for each student."
     },
-    "/instructors/{instructorId}": {
+    "/users/{userId}": {
       "schema": {
-        "$ref": "#/entities/Instructor"
+        "$ref": "#/entities/User"
       },
-      "description": "Stores instructor data. Writable only by admins."
+      "description": "Stores user data, including instructors and administrators. The document ID is the Firebase Auth UID."
     },
-    "/workouts/{instructorId}": {
-      "schema": { "$ref": "#/entities/Workout" },
+    "/workoutSchedules/{instructorId}": {
+      "schema": {
+        "$ref": "#/entities/Workout"
+      },
       "description": "Stores the weekly workout schedule for each instructor. The document ID is the instructor's UID."
     }
   }
