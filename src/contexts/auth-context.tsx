@@ -47,43 +47,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loggedInInstructorId = user ? user.uid : null;
 
   const login = async (email: string, password?: string): Promise<boolean> => {
-    if (!firebaseAuth || !firestore) {
-      console.error('Firebase services not available');
-      return false;
+    if (!firebaseAuth) {
+      console.error('Firebase Auth service not available');
+      throw new Error('Serviço de autenticação indisponível.');
     }
+    if (!password) {
+      throw new Error('A senha é obrigatória.');
+    }
+
     try {
-      if (!password) throw new Error('Password is required.');
       await signInWithEmailAndPassword(firebaseAuth, email, password);
-      // After login, the useDoc hook will fetch the user profile
+      // O sucesso do login fará com que o hook useUser e useDoc
+      // atualizem os estados user e userProfile, acionando a lógica de redirecionamento
+      // na UI.
       return true;
     } catch (error: any) {
-      // If the admin user does not exist, create it on the first login attempt.
-      if (
-        (error.code === 'auth/user-not-found' ||
-          error.code === 'auth/invalid-credential') &&
-        email.toLowerCase() === 'adm@gmail.com'
-      ) {
-        try {
-          if (!password) throw new Error('Password is required for admin setup.');
-          const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-          const adminUser = userCredential.user;
-          // Create the admin profile in Firestore
-          const userDocRef = doc(firestore, 'users', adminUser.uid);
-          const adminProfile: UserProfile = {
-            id: adminUser.uid,
-            name: 'Admin',
-            email: adminUser.email!,
-            isAdmin: true,
-            password: password, // Storing for PoC
-          };
-          await setDoc(userDocRef, adminProfile);
-          return true;
-        } catch (signUpError) {
-          console.error('Admin account creation failed:', signUpError);
-          throw signUpError;
-        }
-      }
       console.error('Authentication failed:', error);
+      // Propaga o erro para ser tratado pela UI (ex: toast de erro na página de login)
       throw error;
     }
   };
