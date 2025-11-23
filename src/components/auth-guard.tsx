@@ -5,7 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { StudentProvider } from '@/contexts/student-context';
-import { WorkoutProvider } from '@/contexts/workout-context';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
