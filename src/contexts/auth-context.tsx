@@ -7,18 +7,24 @@ import React, {
   useEffect,
   type ReactNode,
 } from 'react';
-import { useAuth as useFirebaseAuth, useUser as useFirebaseUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useAuth as useFirebaseAuth, useUser as useFirebaseUser, useFirestore } from '@/firebase';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   type User,
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  DocumentData,
+} from 'firebase/firestore';
 import type { UserProfile } from '@/types';
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null; // Alterado de User para UserProfile
   userProfile: UserProfile | null;
   isAuthenticated: boolean;
   loading: boolean;
@@ -31,55 +37,74 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const firebaseAuth = useFirebaseAuth();
   const firestore = useFirestore();
-  const { user, isUserLoading: isFirebaseUserLoading } = useFirebaseUser();
+  // Mantemos o signOut do Firebase Auth para limpar qualquer sessão antiga, se houver.
+  const firebaseAuth = useFirebaseAuth(); 
 
-  const userProfileRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
+  // O estado agora será controlado manualmente, não pelo onAuthStateChanged
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(false); // Simplificamos o estado de loading
 
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+  const isAuthenticated = !!currentUser;
+  const isAdmin = currentUser?.isAdmin || false;
+  const loggedInInstructorId = currentUser ? currentUser.id : null;
 
-  const isAdmin = !!userProfile?.isAdmin;
-  const isAuthenticated = !!user && !!userProfile;
-  const loggedInInstructorId = user ? user.uid : null;
-
-  const login = async (email: string, password?: string): Promise<boolean> => {
-    if (!firebaseAuth) {
-      console.error('Firebase Auth service not available');
-      throw new Error('Serviço de autenticação indisponível.');
+  const login = async (email: string, password: string): Promise<boolean> => {
+    if (!firestore) {
+      throw new Error('Serviço de banco de dados indisponível.');
     }
-    if (!password) {
-      throw new Error('A senha é obrigatória.');
-    }
+    setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(firebaseAuth, email, password);
-      // O sucesso do login fará com que o hook useUser e useDoc
-      // atualizem os estados user e userProfile, acionando a lógica de redirecionamento
-      // na UI.
+      // 1. Criar a query para buscar o usuário pelo email
+      const usersRef = collection(firestore, 'users');
+      const q = query(usersRef, where('email', '==', email));
+
+      // 2. Executar a query
+      const querySnapshot = await getDocs(q);
+
+      // 3. Verificar se o usuário foi encontrado
+      if (querySnapshot.empty) {
+        // Usuário com o email fornecido não existe
+        throw new Error('Credenciais inválidas.');
+      }
+
+      // 4. Pegar os dados do primeiro documento encontrado (deve ser único)
+      const userDoc = querySnapshot.docs[0];
+      const userData = userDoc.data() as UserProfile;
+
+      // 5. Verificar se a senha corresponde
+      if (userData.password !== password) {
+        // Senha incorreta
+        throw new Error('Credenciais inválidas.');
+      }
+
+      // 6. Login bem-sucedido: definir o usuário no estado
+      setCurrentUser({ ...userData, id: userDoc.id });
       return true;
+
     } catch (error: any) {
-      console.error('Authentication failed:', error);
-      // Propaga o erro para ser tratado pela UI (ex: toast de erro na página de login)
-      throw error;
+      // Limpa o usuário em caso de erro e propaga a mensagem
+      setCurrentUser(null);
+      // Retornamos a mensagem de erro específica ou uma genérica
+      throw new Error(error.message || 'Ocorreu um erro durante o login.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = () => {
+    // Limpa o estado de usuário manual
+    setCurrentUser(null);
+    // Também executa o signOut do Firebase para garantir que qualquer sessão residual seja limpa
     if (firebaseAuth) {
       signOut(firebaseAuth);
     }
   };
 
-  // The overall loading state depends on both Firebase Auth and Firestore profile loading.
-  const loading = isFirebaseUserLoading || (!!user && isProfileLoading);
-
   const value = {
-    user,
-    userProfile,
+    user: currentUser, // Agora o 'user' é o nosso objeto UserProfile
+    userProfile: currentUser,
     isAuthenticated,
     loading,
     login,

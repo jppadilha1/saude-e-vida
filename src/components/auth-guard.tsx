@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { StudentProvider } from '@/contexts/student-context';
+import { WorkoutProvider } from '@/contexts/workout-context';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
@@ -56,8 +57,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   // Se não for rota de admin e não for admin, renderiza com os providers.
   // A verificação !auth.loading garante que os providers só renderizem com o user disponível.
   if (!pathname.startsWith('/admin') && !auth.isAdmin && !auth.loading) {
-    // O WorkoutProvider foi removido daqui e movido para sua página específica
-    return <StudentProvider>{children}</StudentProvider>;
+    return (
+        <StudentProvider>
+            {children}
+        </StudentProvider>
+    );
   }
 
   // Renderiza um loader como fallback enquanto o redirecionamento do useEffect acontece

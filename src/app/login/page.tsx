@@ -19,7 +19,6 @@ import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Logo from '@/components/logo';
 import { Loader2 } from 'lucide-react';
-import { useAuth as useFirebaseAuth } from '@/firebase';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -57,16 +56,8 @@ export default function LoginPage() {
       const success = await login(email, password);
       
       if (success) {
-        // Redirecionamento imediato baseado no email, sem depender do estado `isAdmin`
-        if (email.toLowerCase() === 'adm@gmail.com') {
-          router.push('/admin/instructors');
-        } else {
-          router.push('/');
-        }
-      } else {
-        // A falha no login já é tratada dentro da função `login`
-        // mas podemos colocar um fallback aqui se necessário.
-         throw new Error('Falha no login.');
+        // Após o login manual ser bem-sucedido, o useEffect cuidará do redirecionamento
+        // A página será recarregada pelo router.push dentro do useEffect
       }
     } catch (error: any) {
        toast({
@@ -131,8 +122,8 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" className="w-full" disabled={isLoading || authLoading}>
+              {(isLoading || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Entrar
             </Button>
           </CardFooter>
