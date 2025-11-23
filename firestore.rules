@@ -12,10 +12,8 @@ service cloud.firestore {
 
     // Regra para as subcoleções de um aluno (presença, pagamentos)
     match /students/{studentId}/{document=**} {
-      // Permite o acesso se o usuário já tiver permissão para acessar o documento pai (aluno).
-      // Isso é verificado pela regra acima. A função isSignedIn() garante que apenas usuários
-      // autenticados podem prosseguir, o que já é coberto pela regra principal.
-      allow read, write: if isSignedIn();
+      // Permite o acesso a subcoleções se o usuário for o instrutor do aluno ou um administrador.
+      allow read, write: if get(/databases/$(database)/documents/students/$(studentId)).data.instructorId == request.auth.uid || isAdmin();
     }
     
     // Regra para a coleção de instrutores
@@ -25,6 +23,12 @@ service cloud.firestore {
       // Apenas um administrador pode criar, atualizar ou excluir um instrutor.
       allow create, update, delete: if isAdmin();
     }
+
+    match /workoutSchedules/{instructorId} {
+      // O instrutor pode ler e escrever apenas na sua própria agenda.
+      // O administrador também tem acesso total.
+      allow read, write: if request.auth.uid == instructorId || isAdmin();
+    }
   }
 
   // Função auxiliar para verificar se o usuário está autenticado.
@@ -33,8 +37,7 @@ service cloud.firestore {
   }
 
   // Função auxiliar para verificar se o usuário é o administrador.
-  // A comparação é feita em minúsculas para evitar problemas de "case".
   function isAdmin() {
-    return request.auth.token.email.lower() == "adm@gmail.com";
+    return request.auth != null && request.auth.token.email == "adm@gmail.com";
   }
 }
