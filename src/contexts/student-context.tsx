@@ -31,8 +31,6 @@ import {
   deleteDocumentNonBlocking,
   setDocumentNonBlocking,
 } from '@/firebase/non-blocking-updates';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { useAuth } from './auth-context';
 
 type StudentWithAttendance = Student & { attendance: Attendance[] };

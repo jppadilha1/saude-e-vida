@@ -17,22 +17,17 @@ service cloud.firestore {
     // This is opened up for the proof-of-concept manual authentication system.
     // In a production app, this would need to be more secure.
     match /users/{userId} {
-      allow read, write: if true;
+      allow read, write, delete: if true;  // ✅ Adicionado delete
     }
 
     // Rule for the students collection
-    // An instructor can only read or write a student document
-    // if the 'instructorId' in the document matches the authenticated instructor's UID.
-    // An administrator also has full access.
-    // NOTE: This rule will only work once the manual auth state is established in the app.
     match /students/{studentId} {
-      allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.instructorId == resource.data.instructorId || isAdmin();
+      allow read, write, delete: if true;  // ✅ Liberado para POC
     }
 
     // Rule for a student's subcollections (attendance, payments)
-    // Allows access to subcollections if the user is the student's instructor or an admin.
     match /students/{studentId}/{document=**} {
-      allow read, write: if get(/databases/$(database)/documents/students/$(studentId)).data.instructorId == request.auth.uid || isAdmin();
+      allow read, write, delete: if true;  // ✅ Liberado para POC
     }
     
     // This collection is no longer used, but keeping the rule for safety.
@@ -42,10 +37,8 @@ service cloud.firestore {
     }
 
     // Rule for the workout schedules collection
-    // The instructor can read and write only to their own schedule.
-    // The administrator also has full access.
     match /workoutSchedules/{instructorId} {
-      allow read, write: if request.auth.uid == instructorId || isAdmin();
+      allow read, write, delete: if true;  // ✅ Adicionado delete
     }
   }
 }
