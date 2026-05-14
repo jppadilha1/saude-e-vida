@@ -1,5 +1,3 @@
-# Firebase Studio
+# Saúde e Vida 🏋️‍♂️📅
 
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+O **Saúde e Vida** é uma aplicação web desenvolvida para otimizar a gestão de academias. O foco do projeto foi criar uma interface funcional onde instrutores e administradores pudessem gerenciar o fluxo de alunos, organizar rotinas de treinos e controlar agendamentos através de uma agenda visual integrada.
